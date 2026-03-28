@@ -1,0 +1,22 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "baseName": {
+      // The short prefix used for naming all Azure resources.
+      // e.g. "fuelfinder" → App Service = "fuelfinder-api", SQL server = "fuelfindersql", ACR = "fuelfindercr"
+      // Must be lowercase, no spaces, ≤13 chars to avoid hitting Azure name-length limits.
+      "value": "fuelfinder"
+    },
+    "location": {
+      // Azure region. "australiaeast" = Sydney. Other options: "australiasoutheast" (Melbourne).
+      // See: az account list-locations --output table
+      "value": "australiaeast"
+    },
+    "environment": {
+      // Environment label — used as a tag on all resources.
+      // Allowed values: "prod" | "staging" | "dev"
+      "value": "prod"
+    }
+  }
+}

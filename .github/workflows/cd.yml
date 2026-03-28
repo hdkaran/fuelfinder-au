@@ -1,0 +1,114 @@
+# FuelFinder AU — Continuous Deployment
+# Runs on every push to main.
+# Builds & pushes Docker image → runs DB migrations → deploys API + SPA → smoke test.
+#
+# Required secrets:
+#   AZURE_CREDENTIALS          — JSON output of: az ad sp create-for-rbac --sdk-auth
+#   AZURE_RESOURCE_GROUP       — Name of the Azure resource group (e.g. "fuelfinder-rg")
+#   ACR_NAME                   — Azure Container Registry name (e.g. "fuelfindercr")
+#   DB_CONNECTION_STRING        — SQL connection string for EF Core migrations
+#   AZURE_STATIC_WEB_APPS_API_TOKEN — Deployment token from Static Web Apps resource
+#   GOOGLE_MAPS_API_KEY        — Google Maps JS API key (written to Key Vault post-deploy)
+
+name: CD
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  APP_SERVICE_NAME: fuelfinder-api
+  IMAGE_NAME: fuelfinder-api
+
+jobs:
+  deploy:
+    name: Deploy to Azure
+    runs-on: ubuntu-latest
+
+    steps:
+      # ── Checkout ──────────────────────────────────────────────────────────
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ── Azure login ───────────────────────────────────────────────────────
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      # ── Docker: build & push API image ────────────────────────────────────
+      - name: Login to ACR
+        if: hashFiles('src/FuelFinder.Api/Dockerfile') != ''
+        run: az acr login --name ${{ secrets.ACR_NAME }}
+
+      - name: Build and push Docker image
+        if: hashFiles('src/FuelFinder.Api/Dockerfile') != ''
+        run: |
+          IMAGE_TAG=${{ secrets.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          IMAGE_LATEST=${{ secrets.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:latest
+          docker build -t $IMAGE_TAG -t $IMAGE_LATEST src/FuelFinder.Api
+          docker push $IMAGE_TAG
+          docker push $IMAGE_LATEST
+
+      # ── .NET: EF Core database migrations ─────────────────────────────────
+      - name: Setup .NET 8
+        if: hashFiles('src/FuelFinder.Api/**/*.csproj') != ''
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Install dotnet-ef tool
+        if: hashFiles('src/FuelFinder.Api/**/*.csproj') != ''
+        run: dotnet tool install -g dotnet-ef
+
+      - name: Run database migrations
+        if: hashFiles('src/FuelFinder.Api/**/*.csproj') != ''
+        working-directory: src/FuelFinder.Api
+        env:
+          ConnectionStrings__SqlConnection: ${{ secrets.DB_CONNECTION_STRING }}
+        run: dotnet ef database update --no-build
+
+      # ── Deploy API to App Service ──────────────────────────────────────────
+      - name: Deploy API to App Service
+        if: hashFiles('src/FuelFinder.Api/Dockerfile') != ''
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ env.APP_SERVICE_NAME }}
+          images: ${{ secrets.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }}
+
+      # ── Deploy frontend to Static Web Apps ────────────────────────────────
+      - name: Setup Node.js 20
+        if: hashFiles('src/web/package.json') != ''
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: src/web/package-lock.json
+
+      - name: Build frontend
+        if: hashFiles('src/web/package.json') != ''
+        working-directory: src/web
+        run: |
+          npm ci
+          npm run build
+
+      - name: Deploy frontend to Static Web Apps
+        if: hashFiles('src/web/package.json') != ''
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          action: upload
+          app_location: src/web
+          output_location: dist
+          skip_app_build: true  # Already built above
+
+      # ── Smoke test ─────────────────────────────────────────────────────────
+      - name: Smoke test — wait for App Service to start
+        run: sleep 30
+
+      - name: Smoke test — /health endpoint
+        run: |
+          curl --fail --silent --show-error \
+            https://${{ env.APP_SERVICE_NAME }}.azurewebsites.net/health

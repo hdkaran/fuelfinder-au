@@ -1,0 +1,110 @@
+# =============================================================================
+# FuelFinder AU — .gitignore
+# =============================================================================
+
+# ── Node / Frontend ───────────────────────────────────────────────────────────
+node_modules/
+dist/
+.next/
+.nuxt/
+.output/
+.cache/
+.parcel-cache/
+coverage/
+*.tsbuildinfo
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.npm
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/sdks
+!.yarn/versions
+
+# Environment files — NEVER commit secrets
+.env
+.env.local
+.env.*.local
+.env.development
+.env.production
+.env.staging
+*.env
+
+# ── .NET / Backend ────────────────────────────────────────────────────────────
+bin/
+obj/
+*.user
+.vs/
+*.suo
+*.sln.docstates
+launchSettings.json
+appsettings.Development.json
+appsettings.Local.json
+*.ncrunchproject
+_ReSharper*/
+*.DotSettings.user
+TestResults/
+*.coverage
+*.coveragexml
+
+# NuGet
+*.nupkg
+*.snupkg
+.nuget/packages/
+packages/
+project.lock.json
+project.fragment.lock.json
+
+# ── Docker ────────────────────────────────────────────────────────────────────
+.dockerignore
+docker-compose.override.yml
+docker-compose.local.yml
+
+# ── OS Files ──────────────────────────────────────────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+
+# ── IDE / Editors ─────────────────────────────────────────────────────────────
+# VSCode — keep extensions.json (shared team config), ignore everything else
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+
+# JetBrains (Rider, WebStorm, etc.)
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# Vim / Emacs
+*.swp
+*.swo
+*~
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
+
+# ── Azure / Bicep ─────────────────────────────────────────────────────────────
+# Compiled Bicep ARM JSON — always generate from source
+*.compiled.json
+# Azure CLI local auth cache
+.azure/
+
+# ── Misc ──────────────────────────────────────────────────────────────────────
+*.log
+*.pid
+*.seed
+*.pid.lock
+*.gz
+*.tar
+*.zip

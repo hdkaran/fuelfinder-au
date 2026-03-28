@@ -1,0 +1,70 @@
+# FuelFinder AU — Continuous Integration
+# Runs on every pull request to main.
+# Lints, type-checks, tests, and builds the frontend + backend.
+#
+# Required secrets: none (CI is read-only)
+
+name: CI
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  ci:
+    name: Build & Test
+    runs-on: ubuntu-latest
+
+    steps:
+      # ── Checkout ──────────────────────────────────────────────────────────
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ── Toolchain setup ───────────────────────────────────────────────────
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: src/web/package-lock.json
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      # ── Frontend (skipped until src/web/package.json exists) ──────────────
+      - name: Install frontend dependencies
+        if: hashFiles('src/web/package.json') != ''
+        working-directory: src/web
+        run: npm ci
+
+      - name: Lint frontend
+        if: hashFiles('src/web/package.json') != ''
+        working-directory: src/web
+        run: npm run lint
+
+      - name: TypeScript type-check
+        if: hashFiles('src/web/package.json') != ''
+        working-directory: src/web
+        run: npx tsc --noEmit
+
+      - name: Run frontend tests
+        if: hashFiles('src/web/package.json') != ''
+        working-directory: src/web
+        run: npm test -- --run
+
+      - name: Build frontend
+        if: hashFiles('src/web/package.json') != ''
+        working-directory: src/web
+        run: npm run build
+
+      # ── Backend (skipped until .csproj exists) ─────────────────────────────
+      - name: Build API
+        if: hashFiles('src/FuelFinder.Api/**/*.csproj') != ''
+        run: dotnet build src/FuelFinder.Api --configuration Release
+
+      - name: Run API tests
+        if: hashFiles('src/FuelFinder.Api.Tests/**/*.csproj') != ''
+        run: dotnet test src/FuelFinder.Api.Tests --configuration Release --no-build --verbosity normal
