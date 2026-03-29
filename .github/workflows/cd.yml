@@ -106,22 +106,12 @@ jobs:
             -o tsv)
           echo "SWA_HOST=$SWA_HOST" >> $GITHUB_ENV
 
-          CDN_HOST=$(az cdn endpoint list \
-            --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
-            --profile-name fuelfinder-cdn \
-            --query "[0].hostName" \
-            -o tsv 2>/dev/null || echo "")
-          echo "CDN_HOST=$CDN_HOST" >> $GITHUB_ENV
-
-          SETTINGS="AllowedOrigins__0=https://$SWA_HOST FuelCheck__ApiKey=${{ secrets.FUELCHECK_API_KEY }}"
-          if [ -n "$CDN_HOST" ]; then
-            SETTINGS="$SETTINGS AllowedOrigins__1=https://$CDN_HOST"
-          fi
-
           az webapp config appsettings set \
             --name ${{ env.APP_SERVICE_NAME }} \
             --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
-            --settings $SETTINGS
+            --settings \
+              "AllowedOrigins__0=https://$SWA_HOST" \
+              "FuelCheck__ApiKey=${{ secrets.FUELCHECK_API_KEY }}"
 
       # ── Deploy frontend to Static Web Apps ────────────────────────────────
       - name: Deploy frontend to Static Web Apps
@@ -171,22 +161,6 @@ jobs:
           curl --fail --silent --show-error \
             "https://${{ env.APP_SERVICE_NAME }}.azurewebsites.net/api/stations/nearby?lat=-33.8688&lng=151.2093&radius=10000"
 
-      - name: Smoke test — CDN endpoint (if deployed)
-        if: hashFiles('src/FuelFinder.Api/Dockerfile') != ''
-        run: |
-          if [ -n "${{ env.CDN_HOST }}" ]; then
-            echo "Checking CDN: https://${{ env.CDN_HOST }}/"
-            STATUS=$(curl --silent --output /dev/null --write-out "%{http_code}" \
-              "https://${{ env.CDN_HOST }}/" || true)
-            echo "CDN status: HTTP $STATUS"
-            # CDN may return 200 or 206 for the index — accept both
-            if [ "$STATUS" != "200" ] && [ "$STATUS" != "206" ]; then
-              echo "::warning::CDN returned HTTP $STATUS — may still be propagating."
-            fi
-          else
-            echo "CDN not yet deployed — skipping."
-          fi
-
       # ── Deployment summary ────────────────────────────────────────────────
       - name: Print deployment summary
         if: hashFiles('src/FuelFinder.Api/Dockerfile') != ''
@@ -197,8 +171,5 @@ jobs:
           echo "|---|---|" >> $GITHUB_STEP_SUMMARY
           echo "| API | https://${{ env.APP_SERVICE_NAME }}.azurewebsites.net |" >> $GITHUB_STEP_SUMMARY
           echo "| Frontend (SWA) | https://${{ env.SWA_HOST }} |" >> $GITHUB_STEP_SUMMARY
-          if [ -n "${{ env.CDN_HOST }}" ]; then
-            echo "| Frontend (CDN) | https://${{ env.CDN_HOST }} |" >> $GITHUB_STEP_SUMMARY
-          fi
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "Commit: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
