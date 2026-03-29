@@ -19,6 +19,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.Property(s => s.Address).HasMaxLength(500).IsRequired();
             e.Property(s => s.Suburb).HasMaxLength(100).IsRequired();
             e.Property(s => s.State).HasMaxLength(3).IsRequired();
+            e.HasIndex(s => new { s.Latitude, s.Longitude }); // bounding-box queries
         });
 
         modelBuilder.Entity<Report>(e =>
