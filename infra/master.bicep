@@ -34,6 +34,7 @@ module keyVault 'modules/keyVault.bicep' = {
     baseName: baseName
     location: location
     tags: tags
+    appServicePrincipalId: '' // empty on first deploy — App Service doesn't exist yet
   }
 }
 
@@ -69,35 +70,14 @@ module appService 'modules/appService.bicep' = {
   }
 }
 
-// ---------- Key Vault role assignment (must come after both KV and App Service) ----------
-module keyVaultRoleAssignment 'modules/keyVault.bicep' = {
-  name: 'keyVaultRoleAssignment'
-  params: {
-    baseName: baseName
-    location: location
-    tags: tags
-    appServicePrincipalId: appService.outputs.principalId
-  }
-}
-
 // ---------- Static Web App ----------
+// Note: Static Web Apps only available in specific regions — using eastasia (closest to AU)
 module staticWebApp 'modules/staticWebApp.bicep' = {
   name: 'staticWebApp'
   params: {
     baseName: baseName
-    location: location
+    location: 'eastasia'
     tags: tags
-  }
-}
-
-// ---------- CDN ----------
-module cdn 'modules/cdn.bicep' = {
-  name: 'cdn'
-  params: {
-    baseName: baseName
-    location: location
-    tags: tags
-    staticWebAppHostname: staticWebApp.outputs.defaultHostname
   }
 }
 

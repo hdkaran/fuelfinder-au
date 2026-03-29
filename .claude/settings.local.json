@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "Bash(az bicep:*)"
+      "Bash(az bicep:*)",
+      "Bash(az provider:*)"
     ]
   }
 }
