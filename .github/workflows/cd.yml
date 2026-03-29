@@ -64,7 +64,7 @@ jobs:
           docker push $IMAGE_LATEST
 
       # ── .NET: EF Core database migrations ─────────────────────────────────
-      - name: Setup .NET 8
+      - name: Setup .NET 10
         if: hashFiles('src/FuelFinder.sln') != ''
         uses: actions/setup-dotnet@v4
         with:
@@ -95,9 +95,9 @@ jobs:
           images: ${{ secrets.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }}
 
       # ── Configure CORS on API ─────────────────────────────────────────────
-      # Resolve the SWA hostname and set it as an allowed origin on the API.
-      # This runs after deploy so the App Service picks up the new setting
-      # on next restart (or within seconds via config polling).
+      # Resolve the SWA and CDN hostnames and add both as allowed origins on
+      # the API. Users may arrive via either hostname, so both need to be in
+      # the CORS allowlist for the browser preflight check to pass.
       - name: Configure CORS on API
         run: |
           SWA_HOST=$(az staticwebapp list \
@@ -105,12 +105,23 @@ jobs:
             --query "[?starts_with(name, 'fuelfinder')].defaultHostname | [0]" \
             -o tsv)
           echo "SWA_HOST=$SWA_HOST" >> $GITHUB_ENV
+
+          CDN_HOST=$(az cdn endpoint list \
+            --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
+            --profile-name fuelfinder-cdn \
+            --query "[0].hostName" \
+            -o tsv 2>/dev/null || echo "")
+          echo "CDN_HOST=$CDN_HOST" >> $GITHUB_ENV
+
+          SETTINGS="AllowedOrigins__0=https://$SWA_HOST FuelCheck__ApiKey=${{ secrets.FUELCHECK_API_KEY }}"
+          if [ -n "$CDN_HOST" ]; then
+            SETTINGS="$SETTINGS AllowedOrigins__1=https://$CDN_HOST"
+          fi
+
           az webapp config appsettings set \
             --name ${{ env.APP_SERVICE_NAME }} \
             --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
-            --settings \
-              "AllowedOrigins__0=https://$SWA_HOST" \
-              "FuelCheck__ApiKey=${{ secrets.FUELCHECK_API_KEY }}"
+            --settings $SETTINGS
 
       # ── Deploy frontend to Static Web Apps ────────────────────────────────
       - name: Deploy frontend to Static Web Apps
@@ -126,14 +137,68 @@ jobs:
           app_location: src/web
           output_location: dist
 
-      # ── Smoke test ─────────────────────────────────────────────────────────
-      # Skipped until a Dockerfile exists and an image has actually been deployed.
-      - name: Smoke test — wait for App Service to start
+      # ── Smoke tests ────────────────────────────────────────────────────────
+      # Retry /health for up to 3 minutes (18 × 10 s) to give the container
+      # time to pull and start. Then check the API and stats endpoints.
+      - name: Smoke test — wait for App Service to become healthy
         if: hashFiles('src/FuelFinder.Api/Dockerfile') != ''
-        run: sleep 30
+        run: |
+          API_BASE="https://${{ env.APP_SERVICE_NAME }}.azurewebsites.net"
+          echo "Waiting for $API_BASE/health ..."
+          for i in $(seq 1 18); do
+            STATUS=$(curl --silent --output /dev/null --write-out "%{http_code}" "$API_BASE/health" || true)
+            echo "  attempt $i: HTTP $STATUS"
+            if [ "$STATUS" = "200" ]; then
+              echo "Health check passed."
+              break
+            fi
+            if [ $i -eq 18 ]; then
+              echo "::error::App Service did not become healthy within 3 minutes."
+              exit 1
+            fi
+            sleep 10
+          done
 
-      - name: Smoke test — /health endpoint
+      - name: Smoke test — /api/stats/summary
         if: hashFiles('src/FuelFinder.Api/Dockerfile') != ''
         run: |
           curl --fail --silent --show-error \
-            https://${{ env.APP_SERVICE_NAME }}.azurewebsites.net/health
+            "https://${{ env.APP_SERVICE_NAME }}.azurewebsites.net/api/stats/summary"
+
+      - name: Smoke test — /api/stations/nearby (returns 200 with array)
+        if: hashFiles('src/FuelFinder.Api/Dockerfile') != ''
+        run: |
+          curl --fail --silent --show-error \
+            "https://${{ env.APP_SERVICE_NAME }}.azurewebsites.net/api/stations/nearby?lat=-33.8688&lng=151.2093&radius=10000"
+
+      - name: Smoke test — CDN endpoint (if deployed)
+        if: hashFiles('src/FuelFinder.Api/Dockerfile') != ''
+        run: |
+          if [ -n "${{ env.CDN_HOST }}" ]; then
+            echo "Checking CDN: https://${{ env.CDN_HOST }}/"
+            STATUS=$(curl --silent --output /dev/null --write-out "%{http_code}" \
+              "https://${{ env.CDN_HOST }}/" || true)
+            echo "CDN status: HTTP $STATUS"
+            # CDN may return 200 or 206 for the index — accept both
+            if [ "$STATUS" != "200" ] && [ "$STATUS" != "206" ]; then
+              echo "::warning::CDN returned HTTP $STATUS — may still be propagating."
+            fi
+          else
+            echo "CDN not yet deployed — skipping."
+          fi
+
+      # ── Deployment summary ────────────────────────────────────────────────
+      - name: Print deployment summary
+        if: hashFiles('src/FuelFinder.Api/Dockerfile') != ''
+        run: |
+          echo "## Deployment complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Endpoint | URL |" >> $GITHUB_STEP_SUMMARY
+          echo "|---|---|" >> $GITHUB_STEP_SUMMARY
+          echo "| API | https://${{ env.APP_SERVICE_NAME }}.azurewebsites.net |" >> $GITHUB_STEP_SUMMARY
+          echo "| Frontend (SWA) | https://${{ env.SWA_HOST }} |" >> $GITHUB_STEP_SUMMARY
+          if [ -n "${{ env.CDN_HOST }}" ]; then
+            echo "| Frontend (CDN) | https://${{ env.CDN_HOST }} |" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Commit: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
