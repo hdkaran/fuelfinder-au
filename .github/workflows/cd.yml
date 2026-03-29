@@ -94,21 +94,6 @@ jobs:
           images: ${{ secrets.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }}
 
       # ── Deploy frontend to Static Web Apps ────────────────────────────────
-      - name: Setup Node.js 20
-        if: hashFiles('src/web/package.json') != ''
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-          cache: "npm"
-          cache-dependency-path: src/web/package-lock.json
-
-      - name: Build frontend
-        if: hashFiles('src/web/package.json') != ''
-        working-directory: src/web
-        run: |
-          npm ci
-          npm run build
-
       - name: Deploy frontend to Static Web Apps
         if: hashFiles('src/web/package.json') != ''
         uses: Azure/static-web-apps-deploy@v1
@@ -118,7 +103,6 @@ jobs:
           action: upload
           app_location: src/web
           output_location: dist
-          skip_app_build: true # Already built above
 
       # ── Smoke test ─────────────────────────────────────────────────────────
       # Skipped until a Dockerfile exists and an image has actually been deployed.
