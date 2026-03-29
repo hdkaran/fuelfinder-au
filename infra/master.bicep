@@ -1,4 +1,4 @@
-// FuelFinder AU — Main Bicep deployment orchestrator1
+// FuelFinder AU — Main Bicep deployment orchestrator
 // Deploys all Azure resources for the fuelfinder-au application.
 // Usage: az deployment group create --resource-group <rg> --template-file master.bicep --parameters @parameters.json
 
@@ -6,7 +6,7 @@
 param baseName string = 'fuelfinder'
 
 @description('Azure region to deploy all resources into')
-param location string = 'australiaeast'
+param location string = 'eastasia'
 
 @description('Environment tag value')
 param environment string = 'prod'
