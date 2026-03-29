@@ -2,8 +2,11 @@ import { useState, useEffect } from 'react';
 import { skipToken } from '@reduxjs/toolkit/query/react';
 import { useGetNearbyStationsQuery, useGetStatsSummaryQuery } from '../api/fuelFinderApi';
 import StationCard from '../components/StationCard';
+import StationMap from '../components/StationMap';
 import { pluralise } from '../utils/format';
 import styles from './HomePage.module.css';
+
+type View = 'list' | 'map';
 
 const RADIUS_METRES = 5000;
 
@@ -15,6 +18,7 @@ interface Coords {
 export default function HomePage() {
   const [coords, setCoords] = useState<Coords | null>(null);
   const [geoError, setGeoError] = useState<string | null>(null);
+  const [view, setView] = useState<View>('list');
 
   useEffect(() => {
     if (!navigator.geolocation) {
@@ -35,13 +39,35 @@ export default function HomePage() {
 
   const { data: stats } = useGetStatsSummaryQuery(undefined, { pollingInterval: 60_000 });
 
+  const hasStations = stations && stations.length > 0;
+
   return (
     <div className={styles.page}>
       <header className={styles.header}>
-        <h1 className={styles.title}>
-          <span className={styles.accent}>Fuel</span>Finder AU
-        </h1>
-        <p className={styles.subtitle}>Find fuel near you</p>
+        <div className={styles.headerTop}>
+          <div>
+            <h1 className={styles.title}>
+              <span className={styles.accent}>Fuel</span>Finder AU
+            </h1>
+            <p className={styles.subtitle}>Find fuel near you</p>
+          </div>
+          {hasStations && (
+            <div className={styles.toggle}>
+              <button
+                className={`${styles.toggleBtn} ${view === 'list' ? styles.toggleActive : ''}`}
+                onClick={() => setView('list')}
+              >
+                List
+              </button>
+              <button
+                className={`${styles.toggleBtn} ${view === 'map' ? styles.toggleActive : ''}`}
+                onClick={() => setView('map')}
+              >
+                Map
+              </button>
+            </div>
+          )}
+        </div>
       </header>
 
       {stats && (
@@ -82,8 +108,7 @@ export default function HomePage() {
           </div>
         )}
 
-        {/* Station list */}
-        {stations && stations.length > 0 && (
+        {hasStations && view === 'list' && (
           <ul className={styles.list}>
             {stations.map((station) => (
               <li key={station.id}>
@@ -91,6 +116,10 @@ export default function HomePage() {
               </li>
             ))}
           </ul>
+        )}
+
+        {hasStations && view === 'map' && (
+          <StationMap stations={stations} center={coords!} />
         )}
       </main>
     </div>

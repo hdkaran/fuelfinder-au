@@ -1,0 +1,22 @@
+.map {
+  width: 100%;
+  height: calc(100dvh - 120px); /* viewport minus sticky header */
+}
+
+.placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: calc(100dvh - 120px);
+  padding: 24px;
+  text-align: center;
+  color: #888;
+  font-size: 14px;
+}
+
+.placeholder code {
+  font-size: 12px;
+  background: #f0f0f0;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
