@@ -53,9 +53,13 @@ resource appServicePlan 'Microsoft.Web/serverfarms@2022-09-01' = {
   }
 }
 
+// Unique 6-char suffix derived from the resource group ID — avoids global name collisions
+// for App Service (names must be globally unique across all of Azure).
+var uniqueSuffix = take(uniqueString(resourceGroup().id), 6)
+
 // App Service — Docker container hosting the .NET API
 resource appService 'Microsoft.Web/sites@2022-09-01' = {
-  name: '${baseName}-api'
+  name: '${baseName}-api-${uniqueSuffix}'
   location: location
   tags: tags
   kind: 'app,linux,container'
@@ -66,7 +70,7 @@ resource appService 'Microsoft.Web/sites@2022-09-01' = {
     serverFarmId: appServicePlan.id
     httpsOnly: true
     siteConfig: {
-      linuxFxVersion: 'DOCKER|${acr.properties.loginServer}/${baseName}-api:latest'
+      linuxFxVersion: 'DOCKER|${acr.properties.loginServer}/${baseName}-api-${uniqueSuffix}:latest'
       acrUseManagedIdentityCreds: true  // Pull from ACR using managed identity
       alwaysOn: true
       ftpsState: 'Disabled'

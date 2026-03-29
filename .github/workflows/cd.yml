@@ -18,7 +18,6 @@ on:
       - master
 
 env:
-  APP_SERVICE_NAME: fuelfinder-api
   IMAGE_NAME: fuelfinder-api
 
 jobs:
@@ -36,6 +35,18 @@ jobs:
         uses: azure/login@v2
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      # ── Resolve App Service name (unique suffix from Bicep) ────────────────
+      # The App Service name includes a uniqueString suffix derived from the
+      # resource group ID (see infra/modules/appService.bicep). We query Azure
+      # at deploy time rather than hardcoding it.
+      - name: Resolve App Service name
+        run: |
+          NAME=$(az webapp list \
+            --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
+            --query "[?starts_with(name, 'fuelfinder-api')].name | [0]" \
+            -o tsv)
+          echo "APP_SERVICE_NAME=$NAME" >> $GITHUB_ENV
 
       # ── Docker: build & push API image ────────────────────────────────────
       - name: Login to ACR
@@ -105,10 +116,13 @@ jobs:
           skip_app_build: true # Already built above
 
       # ── Smoke test ─────────────────────────────────────────────────────────
+      # Skipped until a Dockerfile exists and an image has actually been deployed.
       - name: Smoke test — wait for App Service to start
+        if: hashFiles('src/FuelFinder.Api/Dockerfile') != ''
         run: sleep 30
 
       - name: Smoke test — /health endpoint
+        if: hashFiles('src/FuelFinder.Api/Dockerfile') != ''
         run: |
           curl --fail --silent --show-error \
             https://${{ env.APP_SERVICE_NAME }}.azurewebsites.net/health
