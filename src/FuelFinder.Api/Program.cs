@@ -43,7 +43,9 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var seeder = scope.ServiceProvider.GetRequiredService<StationSeeder>();
-    await seeder.SeedAsync();
+    var seedLogger = scope.ServiceProvider.GetRequiredService<ILogger<StationSeeder>>();
+    try { await seeder.SeedAsync(); }
+    catch (Exception ex) { seedLogger.LogError(ex, "Station seeding failed — API will start without station data."); }
 }
 
 app.UseCors();
