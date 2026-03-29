@@ -14,6 +14,10 @@ param environment string = 'prod'
 @description('Optional custom domain (e.g. "fuelfinder.com.au"). Leave empty to use Azure default hostnames.')
 param customDomain string = ''
 
+@description('SQL administrator password. Required on every deploy to prevent Bicep from resetting it to a new random value.')
+@secure()
+param sqlAdminPassword string
+
 // Shared tags applied to every resource
 var tags = {
   project: 'fuelfinder-au'
@@ -48,6 +52,7 @@ module sql 'modules/sql.bicep' = {
     baseName: baseName
     location: location
     tags: tags
+    administratorLoginPassword: sqlAdminPassword
   }
 }
 

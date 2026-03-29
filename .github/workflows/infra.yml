@@ -42,6 +42,7 @@ jobs:
             --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
             --template-file infra/master.bicep \
             --parameters @infra/parameters.json \
+            --parameters sqlAdminPassword=${{ secrets.SQL_ADMIN_PASSWORD }} \
             --mode Incremental \
             --verbose
 

@@ -14,9 +14,9 @@ param tags object
 @description('SQL administrator login username')
 param administratorLogin string = 'fueladmin'
 
-@description('SQL administrator login password — set via Key Vault or deployment parameter. Must be complex.')
+@description('SQL administrator login password. Must be supplied on every deploy — never left as a default — to avoid Bicep resetting the password on re-deploy.')
 @secure()
-param administratorLoginPassword string = newGuid()  // Random default; override in production
+param administratorLoginPassword string
 
 // SQL Server
 resource sqlServer 'Microsoft.Sql/servers@2022-11-01-preview' = {
