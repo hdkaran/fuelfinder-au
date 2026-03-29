@@ -9,6 +9,7 @@
 #   DB_CONNECTION_STRING        — SQL connection string for EF Core migrations
 #   AZURE_STATIC_WEB_APPS_API_TOKEN — Deployment token from Static Web Apps resource
 #   GOOGLE_MAPS_API_KEY        — Google Maps JS API key (written to Key Vault post-deploy)
+#   FUELCHECK_API_KEY          — NSW FuelCheck API key for seeding stations
 
 name: CD
 
@@ -107,7 +108,9 @@ jobs:
           az webapp config appsettings set \
             --name ${{ env.APP_SERVICE_NAME }} \
             --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
-            --settings "AllowedOrigins__0=https://$SWA_HOST"
+            --settings \
+              "AllowedOrigins__0=https://$SWA_HOST" \
+              "FuelCheck__ApiKey=${{ secrets.FUELCHECK_API_KEY }}"
 
       # ── Deploy frontend to Static Web Apps ────────────────────────────────
       - name: Deploy frontend to Static Web Apps

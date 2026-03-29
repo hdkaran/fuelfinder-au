@@ -31,11 +31,20 @@ builder.Services.AddCors(options =>
         policy.WithOrigins(allowedOrigins).AllowAnyMethod().AllowAnyHeader()));
 
 // Services
+builder.Services.AddHttpClient("FuelCheck");
 builder.Services.AddScoped<StationQueryService>();
 builder.Services.AddScoped<ReportService>();
 builder.Services.AddScoped<StatsService>();
+builder.Services.AddScoped<StationSeeder>();
 
 var app = builder.Build();
+
+// Seed stations from NSW FuelCheck on first boot
+using (var scope = app.Services.CreateScope())
+{
+    var seeder = scope.ServiceProvider.GetRequiredService<StationSeeder>();
+    await seeder.SeedAsync();
+}
 
 app.UseCors();
 
