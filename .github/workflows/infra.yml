@@ -1,5 +1,5 @@
 # FuelFinder AU — Infrastructure Provisioning
-# Runs on push to main when any infra/** file changes.
+# Runs on push to master when any infra/** file changes.
 # Deploys (or updates) all Azure resources via Bicep.
 #
 # Required secrets:
@@ -15,9 +15,9 @@ name: Infrastructure
 on:
   push:
     branches:
-      - main
+      - master
     paths:
-      - 'infra/**'
+      - "infra/**"
 
 jobs:
   deploy-infra:
@@ -40,7 +40,7 @@ jobs:
         run: |
           az deployment group create \
             --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
-            --template-file infra/main.bicep \
+            --template-file infra/master.bicep \
             --parameters @infra/parameters.json \
             --mode Incremental \
             --verbose

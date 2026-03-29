@@ -1,5 +1,5 @@
 # FuelFinder AU — Continuous Deployment
-# Runs on every push to main.
+# Runs on every push to master.
 # Builds & pushes Docker image → runs DB migrations → deploys API + SPA → smoke test.
 #
 # Required secrets:
@@ -15,7 +15,7 @@ name: CD
 on:
   push:
     branches:
-      - main
+      - master
 
 env:
   APP_SERVICE_NAME: fuelfinder-api
@@ -56,7 +56,7 @@ jobs:
         if: hashFiles('src/FuelFinder.Api/**/*.csproj') != ''
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '8.0.x'
+          dotnet-version: "8.0.x"
 
       - name: Install dotnet-ef tool
         if: hashFiles('src/FuelFinder.Api/**/*.csproj') != ''
@@ -82,8 +82,8 @@ jobs:
         if: hashFiles('src/web/package.json') != ''
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: "20"
+          cache: "npm"
           cache-dependency-path: src/web/package-lock.json
 
       - name: Build frontend
@@ -102,7 +102,7 @@ jobs:
           action: upload
           app_location: src/web
           output_location: dist
-          skip_app_build: true  # Already built above
+          skip_app_build: true # Already built above
 
       # ── Smoke test ─────────────────────────────────────────────────────────
       - name: Smoke test — wait for App Service to start

@@ -8,14 +8,14 @@ During fuel shortage crises, FuelFinder AU lets drivers report and find which pe
 
 ## Tech Stack
 
-| Layer | Technology |
-|---|---|
-| Frontend | React 18 + TypeScript 5 (strict) + Vite + RTK Query + React Router v6 + CSS Modules |
-| Backend | .NET 8 Minimal API + EF Core 8 |
-| Database | Azure SQL (Basic 5 DTU) |
-| Cache | Azure Redis Cache (C0 250 MB) |
-| Infrastructure | Azure App Service (B2 Linux), Static Web Apps, Key Vault, CDN, App Insights |
-| CI/CD | GitHub Actions (ci.yml, cd.yml, infra.yml) |
+| Layer          | Technology                                                                          |
+| -------------- | ----------------------------------------------------------------------------------- |
+| Frontend       | React 18 + TypeScript 5 (strict) + Vite + RTK Query + React Router v6 + CSS Modules |
+| Backend        | .NET 8 Minimal API + EF Core 8                                                      |
+| Database       | Azure SQL (Basic 5 DTU)                                                             |
+| Cache          | Azure Redis Cache (C0 250 MB)                                                       |
+| Infrastructure | Azure App Service (B2 Linux), Static Web Apps, Key Vault, CDN, App Insights         |
+| CI/CD          | GitHub Actions (ci.yml, cd.yml, infra.yml)                                          |
 
 ---
 
@@ -51,28 +51,29 @@ az ad sp create-for-rbac \
 
 Copy the entire JSON output. Add the following secrets to your GitHub repository under **Settings → Secrets and variables → Actions**:
 
-| Secret | Value |
-|---|---|
-| `AZURE_CREDENTIALS` | Full JSON output from `az ad sp create-for-rbac --sdk-auth` above |
-| `AZURE_RESOURCE_GROUP` | Name of your Azure resource group (e.g. `fuelfinder-rg`) |
-| `ACR_NAME` | Azure Container Registry name — set to `fuelfindercr` (or your baseName + `cr`) |
-| `DB_CONNECTION_STRING` | Leave blank for now — populated in step 4 |
-| `AZURE_STATIC_WEB_APPS_API_TOKEN` | Leave blank for now — populated after first infra deploy |
-| `GOOGLE_MAPS_API_KEY` | Your Google Maps JavaScript API key |
+| Secret                            | Value                                                                           |
+| --------------------------------- | ------------------------------------------------------------------------------- |
+| `AZURE_CREDENTIALS`               | Full JSON output from `az ad sp create-for-rbac --sdk-auth` above               |
+| `AZURE_RESOURCE_GROUP`            | Name of your Azure resource group (e.g. `fuelfinder-rg`)                        |
+| `ACR_NAME`                        | Azure Container Registry name — set to `fuelfindercr` (or your baseName + `cr`) |
+| `DB_CONNECTION_STRING`            | Leave blank for now — populated in step 4                                       |
+| `AZURE_STATIC_WEB_APPS_API_TOKEN` | Leave blank for now — populated after first infra deploy                        |
+| `GOOGLE_MAPS_API_KEY`             | Your Google Maps JavaScript API key                                             |
 
 > **Create the resource group first if it doesn't exist:**
+>
 > ```bash
 > az group create --name fuelfinder-rg --location australiaeast
 > ```
 
-### 3. Push to main → infra.yml provisions all Azure resources
+### 3. Push to master → infra.yml provisions all Azure resources
 
-Any push to `main` that changes files under `infra/` will trigger `infra.yml`, which runs:
+Any push to `master` that changes files under `infra/` will trigger `infra.yml`, which runs:
 
 ```bash
 az deployment group create \
   --resource-group fuelfinder-rg \
-  --template-file infra/main.bicep \
+  --template-file infra/master.bicep \
   --parameters @infra/parameters.json
 ```
 
@@ -107,9 +108,9 @@ az keyvault secret set \
 
 Repeat for `RedisConnectionString` (get from Azure Portal → Redis → Access keys).
 
-### 5. Push any change to main → CD deploys the app
+### 5. Push any change to master → CD deploys the app
 
-Once all secrets are set, push to `main`. The `cd.yml` workflow will:
+Once all secrets are set, push to `master`. The `cd.yml` workflow will:
 
 1. Build and push the Docker image to ACR
 2. Run EF Core database migrations
@@ -148,6 +149,6 @@ TypeScript strict mode is enforced — `npm run build` will fail on type errors.
 ## Contributing
 
 - **Branch naming:** `phase/N-short-description` (e.g. `phase/1-api-scaffold`, `phase/4-home-ui`)
-- All changes to `main` require a pull request — direct pushes are blocked.
+- All changes to `master` require a pull request — direct pushes are blocked.
 - CI must pass (lint, type-check, tests, build) before merging.
 - Tag PRs with the relevant phase label.

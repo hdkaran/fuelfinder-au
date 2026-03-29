@@ -2,7 +2,7 @@
 
 ## What this app is
 
-FuelFinder AU is a mobile-first crowdsourced petrol availability tracker built for Australia. During fuel shortage crises — when panic buying empties stations unpredictably — drivers need to know *before they drive* which nearby stations have fuel, what types are available (Diesel, ULP, E10, Premium), and how long the queues are. The app lets any driver submit a quick report from the forecourt; those reports are aggregated in near real-time and surfaced to other drivers on a map and list view.
+FuelFinder AU is a mobile-first crowdsourced petrol availability tracker built for Australia. During fuel shortage crises — when panic buying empties stations unpredictably — drivers need to know _before they drive_ which nearby stations have fuel, what types are available (Diesel, ULP, E10, Premium), and how long the queues are. The app lets any driver submit a quick report from the forecourt; those reports are aggregated in near real-time and surfaced to other drivers on a map and list view.
 
 The design philosophy is: **launch fast, stay simple, stay reliable**. This means mobile-first (max-width 420px), no SignalR in MVP (RTK Query polling covers it), no Redux (RTK Query only), and Minimal API style on the backend. The stack was chosen to be deployable entirely on Azure from a single `az deployment group create` command and a GitHub Actions push.
 
@@ -11,7 +11,7 @@ The design philosophy is: **launch fast, stay simple, stay reliable**. This mean
 - **Frontend:** React 18 + TypeScript 5 (strict) + Vite + RTK Query + React Router v6 + CSS Modules
 - **Backend:** .NET 8 Minimal API + EF Core 8 + Azure SQL + Azure Redis Cache
 - **Infrastructure:** Azure App Service (B2 Linux, Docker container), Azure Static Web Apps (Free), Azure SQL (Basic 5 DTU), Azure Redis (C0 250 MB), Azure Key Vault (Standard), Azure CDN (Standard Microsoft), Azure App Insights + Log Analytics
-- **CI/CD:** GitHub Actions — `ci.yml` (PR checks), `cd.yml` (deploy on push to main), `infra.yml` (Bicep deploy when infra/** changes)
+- **CI/CD:** GitHub Actions — `ci.yml` (PR checks), `cd.yml` (deploy on push to master), `infra.yml` (Bicep deploy when infra/\*\* changes)
 - **No SignalR in MVP** — use RTK Query polling + manual refresh button (see ADR 001)
 
 ## Hard rules — never break these
@@ -37,7 +37,7 @@ fuelfinder-au/
 │   └── web/                             ← React 18 + Vite SPA (Phase 3–7)
 │       └── .gitkeep
 ├── infra/
-│   ├── main.bicep                       ← Orchestrates all Bicep modules
+│   ├── master.bicep                       ← Orchestrates all Bicep modules
 │   ├── parameters.json                  ← Deployment parameters
 │   └── modules/
 │       ├── appService.bicep             ← App Service Plan + App Service + ACR
@@ -50,8 +50,8 @@ fuelfinder-au/
 ├── .github/
 │   └── workflows/
 │       ├── ci.yml                       ← PR: lint, type-check, test, build
-│       ├── cd.yml                       ← Push to main: build → migrate → deploy → smoke test
-│       └── infra.yml                    ← Push to main (infra/**): Bicep deploy
+│       ├── cd.yml                       ← Push to master: build → migrate → deploy → smoke test
+│       └── infra.yml                    ← Push to master (infra/**): Bicep deploy
 ├── docs/
 │   └── adr/
 │       └── 001-no-signalr-mvp.md        ← Architecture Decision Record
@@ -74,9 +74,9 @@ GET  /health                                             → 200 OK (smoke test 
 ## TypeScript types — source of truth
 
 ```typescript
-type FuelType = 'Diesel' | 'ULP' | 'E10' | 'Premium';
-type StationStatus = 'available' | 'low' | 'out' | 'unknown';
-type ReportStatus = 'available' | 'low' | 'out' | 'queue';
+type FuelType = "Diesel" | "ULP" | "E10" | "Premium";
+type StationStatus = "available" | "low" | "out" | "unknown";
+type ReportStatus = "available" | "low" | "out" | "queue";
 
 interface StationDto {
   id: string;
@@ -110,7 +110,7 @@ interface ReportPayload {
 interface StatsDto {
   totalReportsToday: number;
   stationsAffected: number;
-  lastUpdated: string;  // ISO 8601
+  lastUpdated: string; // ISO 8601
 }
 ```
 
@@ -150,14 +150,14 @@ Layout:          Mobile-first. Max-width 420px centred on desktop.
 
 ## GitHub Actions secrets required
 
-| Secret | Purpose |
-|---|---|
-| `AZURE_CREDENTIALS` | JSON from `az ad sp create-for-rbac --sdk-auth` |
-| `AZURE_RESOURCE_GROUP` | Azure resource group name |
-| `ACR_NAME` | Container registry name (e.g. `fuelfindercr`) |
-| `DB_CONNECTION_STRING` | SQL connection string for EF Core migrations |
-| `AZURE_STATIC_WEB_APPS_API_TOKEN` | SWA deployment token from Azure Portal |
-| `GOOGLE_MAPS_API_KEY` | Google Maps JS API key |
+| Secret                            | Purpose                                         |
+| --------------------------------- | ----------------------------------------------- |
+| `AZURE_CREDENTIALS`               | JSON from `az ad sp create-for-rbac --sdk-auth` |
+| `AZURE_RESOURCE_GROUP`            | Azure resource group name                       |
+| `ACR_NAME`                        | Container registry name (e.g. `fuelfindercr`)   |
+| `DB_CONNECTION_STRING`            | SQL connection string for EF Core migrations    |
+| `AZURE_STATIC_WEB_APPS_API_TOKEN` | SWA deployment token from Azure Portal          |
+| `GOOGLE_MAPS_API_KEY`             | Google Maps JS API key                          |
 
 ## RTK Query polling intervals
 
@@ -179,15 +179,15 @@ Paste this `CLAUDE.md` into a new Claude Code session and say:
 
 ### Phase roadmap
 
-| Phase | Description |
-|---|---|
-| **0** | Infrastructure scaffold (this session — complete) |
+| Phase | Description                                                                                |
+| ----- | ------------------------------------------------------------------------------------------ |
+| **0** | Infrastructure scaffold (this session — complete)                                          |
 | **1** | .NET 8 API scaffold: project setup, EF Core models, DbContext, migrations, health endpoint |
-| **2** | API logic: nearby stations query, report submission, stats aggregation, Redis caching |
-| **3** | React scaffold: Vite project, RTK Query setup, Router, CSS custom properties, Outfit font |
-| **4** | Home screen + Nearby stations list UI |
-| **5** | Report submission flow + Success screen |
-| **6** | Live data wiring: connect frontend to real API, map view |
-| **7** | Polish: refresh button, loading states, error handling, PWA manifest |
-| **8** | Tests: xUnit integration tests for API, Vitest for React components |
-| **9** | Go live: custom domain, CDN, final smoke tests, production sign-off |
+| **2** | API logic: nearby stations query, report submission, stats aggregation, Redis caching      |
+| **3** | React scaffold: Vite project, RTK Query setup, Router, CSS custom properties, Outfit font  |
+| **4** | Home screen + Nearby stations list UI                                                      |
+| **5** | Report submission flow + Success screen                                                    |
+| **6** | Live data wiring: connect frontend to real API, map view                                   |
+| **7** | Polish: refresh button, loading states, error handling, PWA manifest                       |
+| **8** | Tests: xUnit integration tests for API, Vitest for React components                        |
+| **9** | Go live: custom domain, CDN, final smoke tests, production sign-off                        |

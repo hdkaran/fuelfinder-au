@@ -1,5 +1,5 @@
 # FuelFinder AU — Continuous Integration
-# Runs on every pull request to main.
+# Runs on every pull request to master.
 # Lints, type-checks, tests, and builds the frontend + backend.
 #
 # Required secrets: none (CI is read-only)
@@ -9,7 +9,7 @@ name: CI
 on:
   pull_request:
     branches:
-      - main
+      - master
 
 jobs:
   ci:
@@ -25,14 +25,14 @@ jobs:
       - name: Setup Node.js 20
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: "20"
+          cache: "npm"
           cache-dependency-path: src/web/package-lock.json
 
       - name: Setup .NET 8
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '8.0.x'
+          dotnet-version: "8.0.x"
 
       # ── Frontend (skipped until src/web/package.json exists) ──────────────
       - name: Install frontend dependencies
