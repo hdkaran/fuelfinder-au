@@ -64,22 +64,22 @@ jobs:
 
       # ── .NET: EF Core database migrations ─────────────────────────────────
       - name: Setup .NET 8
-        if: hashFiles('src/FuelFinder.Api/**/*.csproj') != ''
+        if: hashFiles('src/FuelFinder.sln') != ''
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: "8.0.x"
 
       - name: Install dotnet-ef tool
-        if: hashFiles('src/FuelFinder.Api/**/*.csproj') != ''
+        if: hashFiles('src/FuelFinder.sln') != ''
         run: dotnet tool install -g dotnet-ef
 
       - name: Restore NuGet packages
-        if: hashFiles('src/FuelFinder.Api/**/*.csproj') != ''
-        working-directory: src/FuelFinder.Api
-        run: dotnet restore
+        if: hashFiles('src/FuelFinder.sln') != ''
+        working-directory: src
+        run: dotnet restore FuelFinder.sln
 
       - name: Run database migrations
-        if: hashFiles('src/FuelFinder.Api/**/*.csproj') != ''
+        if: hashFiles('src/FuelFinder.sln') != ''
         working-directory: src/FuelFinder.Api
         env:
           ConnectionStrings__SqlConnection: ${{ secrets.DB_CONNECTION_STRING }}

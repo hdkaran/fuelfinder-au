@@ -61,11 +61,11 @@ jobs:
         working-directory: src/web
         run: npm run build
 
-      # ── Backend (skipped until .csproj exists) ─────────────────────────────
-      - name: Build API
-        if: hashFiles('src/FuelFinder.Api/**/*.csproj') != ''
-        run: dotnet build src/FuelFinder.Api --configuration Release
+      # ── Backend (skipped until solution exists) ────────────────────────────
+      - name: Build solution
+        if: hashFiles('src/FuelFinder.sln') != ''
+        run: dotnet build src/FuelFinder.sln --configuration Release
 
       - name: Run API tests
         if: hashFiles('src/FuelFinder.Api.Tests/**/*.csproj') != ''
-        run: dotnet test src/FuelFinder.Api.Tests --configuration Release --no-build --verbosity normal
+        run: dotnet test src/FuelFinder.sln --configuration Release --no-build --verbosity normal
