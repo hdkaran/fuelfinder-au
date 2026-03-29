@@ -11,7 +11,7 @@
     "location": {
       // Azure region. "australiaeast" = Sydney. Other options: "australiasoutheast" (Melbourne).
       // See: az account list-locations --output table
-      "value": "australiaeast"
+      "value": "eastasia"
     },
     "environment": {
       // Environment label — used as a tag on all resources.
