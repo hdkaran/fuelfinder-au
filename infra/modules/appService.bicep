@@ -70,7 +70,9 @@ resource appService 'Microsoft.Web/sites@2022-09-01' = {
     serverFarmId: appServicePlan.id
     httpsOnly: true
     siteConfig: {
-      linuxFxVersion: 'DOCKER|${acr.properties.loginServer}/${baseName}-api-${uniqueSuffix}:latest'
+      // Image name matches what cd.yml builds: IMAGE_NAME=fuelfinder-api (no unique suffix).
+      // The unique suffix is only on the App Service NAME for global DNS uniqueness — not on the image.
+      linuxFxVersion: 'DOCKER|${acr.properties.loginServer}/${baseName}-api:latest'
       acrUseManagedIdentityCreds: true  // Pull from ACR using managed identity
       alwaysOn: true
       ftpsState: 'Disabled'
