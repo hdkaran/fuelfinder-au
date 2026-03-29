@@ -5,10 +5,13 @@
 # Required secrets:
 #   AZURE_CREDENTIALS          — JSON output of: az ad sp create-for-rbac --sdk-auth
 #   AZURE_RESOURCE_GROUP       — Name of the Azure resource group (e.g. "fuelfinder-rg")
-#   ACR_NAME                   — (Informational — not used in this workflow directly)
-#   DB_CONNECTION_STRING        — (Informational — populated after first deploy)
-#   AZURE_STATIC_WEB_APPS_API_TOKEN — (Informational — populated after first deploy)
-#   GOOGLE_MAPS_API_KEY        — (Informational — written to Key Vault manually post-deploy)
+#   SQL_ADMIN_PASSWORD         — SQL administrator password (must match the current DB password)
+#
+# Informational (not used by this workflow):
+#   ACR_NAME                   — Container registry name
+#   DB_CONNECTION_STRING        — Populated automatically into Key Vault by Bicep
+#   AZURE_STATIC_WEB_APPS_API_TOKEN — SWA deployment token
+#   GOOGLE_MAPS_API_KEY        — Written to Key Vault manually post-deploy
 
 name: Infrastructure
 
@@ -42,6 +45,7 @@ jobs:
             --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
             --template-file infra/master.bicep \
             --parameters @infra/parameters.json \
+            --parameters sqlAdminPassword=${{ secrets.SQL_ADMIN_PASSWORD }} \
             --mode Incremental \
             --verbose
 
