@@ -4,13 +4,27 @@ import { useGetNearbyStationsQuery, useGetStatsSummaryQuery } from '../api/fuelF
 import StationCard from '../components/StationCard';
 import StationCardSkeleton from '../components/StationCardSkeleton';
 import StationMap from '../components/StationMap';
+import RadiusPicker, { RADIUS_OPTIONS, type RadiusValue } from '../components/RadiusPicker';
 import { pluralise } from '../utils/format';
 import styles from './HomePage.module.css';
 
 type View = 'list' | 'map';
 
-const RADIUS_METRES = 5000;
 const SKELETON_COUNT = 4;
+const STORAGE_KEY = 'fuelfinder:radius';
+const DEFAULT_RADIUS: RadiusValue = 5_000;
+
+function readStoredRadius(): RadiusValue {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    const parsed = Number(raw);
+    return RADIUS_OPTIONS.some((o) => o.value === parsed)
+      ? (parsed as RadiusValue)
+      : DEFAULT_RADIUS;
+  } catch {
+    return DEFAULT_RADIUS;
+  }
+}
 
 interface Coords {
   lat: number;
@@ -21,6 +35,12 @@ export default function HomePage() {
   const [coords, setCoords] = useState<Coords | null>(null);
   const [geoError, setGeoError] = useState<string | null>(null);
   const [view, setView] = useState<View>('list');
+  const [radius, setRadius] = useState<RadiusValue>(readStoredRadius);
+
+  function handleRadiusChange(newRadius: RadiusValue) {
+    setRadius(newRadius);
+    try { localStorage.setItem(STORAGE_KEY, String(newRadius)); } catch { /* ignore */ }
+  }
 
   useEffect(() => {
     if (!navigator.geolocation) {
@@ -41,7 +61,7 @@ export default function HomePage() {
     refetch,
     isFetching,
   } = useGetNearbyStationsQuery(
-    coords ? { lat: coords.lat, lng: coords.lng, radius: RADIUS_METRES } : skipToken,
+    coords ? { lat: coords.lat, lng: coords.lng, radius } : skipToken,
     { pollingInterval: coords ? 120_000 : undefined },
   );
 
@@ -99,6 +119,8 @@ export default function HomePage() {
         </div>
       )}
 
+      <RadiusPicker value={radius} onChange={handleRadiusChange} />
+
       <main className={styles.main}>
         {!coords && !geoError && (
           <div className={styles.centered}>
@@ -133,8 +155,8 @@ export default function HomePage() {
         {coords && !stationsLoading && !stationsError && stations?.length === 0 && (
           <div className={styles.centered}>
             <span className={styles.icon}>🔍</span>
-            <p>No stations found within 5 km.</p>
-            <p className={styles.hint}>Be the first to report a station near you.</p>
+            <p>No stations found within {RADIUS_OPTIONS.find((o) => o.value === radius)?.label}.</p>
+            <p className={styles.hint}>Try a larger radius or be the first to report a station near you.</p>
           </div>
         )}
 

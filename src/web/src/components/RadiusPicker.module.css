@@ -1,0 +1,40 @@
+.bar {
+  display: flex;
+  gap: 8px;
+  padding: 10px 16px;
+  background: var(--color-surface);
+  border-bottom: 1px solid #eee;
+  overflow-x: auto;
+  /* Hide scrollbar but keep scrollable on small screens */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.bar::-webkit-scrollbar {
+  display: none;
+}
+
+.pill {
+  flex-shrink: 0;
+  padding: 6px 14px;
+  border: 1.5px solid #e0e0e0;
+  border-radius: 100px;
+  background: transparent;
+  color: #555;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s, color 0.12s, transform 0.1s;
+  white-space: nowrap;
+}
+
+.pill:active {
+  transform: scale(0.97);
+}
+
+.active {
+  background: var(--color-amber);
+  border-color: var(--color-amber);
+  color: var(--color-dark);
+}
