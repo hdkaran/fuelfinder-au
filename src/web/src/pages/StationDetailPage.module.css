@@ -3,37 +3,6 @@
   background: var(--color-bg);
 }
 
-.header {
-  background: var(--color-dark);
-  padding: 16px 16px 20px;
-}
-
-.back {
-  display: inline-block;
-  color: var(--color-amber);
-  text-decoration: none;
-  font-size: 14px;
-  font-weight: 600;
-  margin-bottom: 12px;
-}
-
-.back:active {
-  opacity: 0.7;
-}
-
-.name {
-  font-size: 22px;
-  font-weight: 800;
-  color: #fff;
-  margin: 0 0 2px;
-  letter-spacing: -0.3px;
-}
-
-.brand {
-  font-size: 13px;
-  color: rgba(255, 255, 255, 0.45);
-  margin: 0;
-}
 
 .main {
   padding: 16px;
@@ -88,9 +57,20 @@
   font-size: 15px;
 }
 
-.reportPlaceholder {
+.reportBtn {
+  display: block;
+  width: 100%;
+  padding: 16px;
+  background: var(--color-amber);
+  color: var(--color-dark);
+  border-radius: var(--radius-button);
+  font-size: 16px;
+  font-weight: 800;
   text-align: center;
-  padding: 24px;
-  color: #bbb;
-  font-size: 13px;
+  text-decoration: none;
+  transition: transform 0.1s;
+}
+
+.reportBtn:active {
+  transform: scale(0.97);
 }

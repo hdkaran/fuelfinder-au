@@ -1,0 +1,242 @@
+.page {
+  min-height: 100dvh;
+  background: var(--color-bg);
+}
+
+/* ── Main ── */
+.main {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.section {
+  background: var(--color-surface);
+  border-radius: var(--radius-card);
+  padding: 16px;
+}
+
+.sectionTitle {
+  font-size: 13px;
+  font-weight: 700;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 0 0 12px;
+}
+
+/* ── Status buttons ── */
+.statusGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.statusBtn {
+  padding: 14px 8px;
+  border-radius: var(--radius-button);
+  border: 2px solid transparent;
+  font-size: 15px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  transition: transform 0.1s, box-shadow 0.1s;
+  background: #f5f5f5;
+  color: #444;
+}
+
+.statusBtn:active {
+  transform: scale(0.97);
+}
+
+.statusBtn.selected {
+  border-color: currentColor;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+}
+
+.statusAvailable {
+  color: var(--color-available-text);
+  background: var(--color-available-bg);
+}
+.statusAvailable.selected {
+  border-color: var(--color-available);
+}
+
+.statusLow {
+  color: var(--color-low-text);
+  background: var(--color-low-bg);
+}
+.statusLow.selected {
+  border-color: var(--color-low);
+}
+
+.statusOut {
+  color: var(--color-out-text);
+  background: var(--color-out-bg);
+}
+.statusOut.selected {
+  border-color: var(--color-out);
+}
+
+.statusQueue {
+  color: #92400e;
+  background: #fffbeb;
+}
+.statusQueue.selected {
+  border-color: var(--color-amber);
+}
+
+/* ── Fuel rows ── */
+.fuelList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.fuelRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 2px solid transparent;
+  cursor: pointer;
+  font-family: inherit;
+  transition: transform 0.1s;
+}
+
+.fuelRow:active {
+  transform: scale(0.97);
+}
+
+.fuelYes {
+  background: var(--color-available-bg);
+  border-color: var(--color-available);
+}
+
+.fuelNo {
+  background: var(--color-out-bg);
+  border-color: var(--color-out);
+}
+
+.fuelName {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-dark);
+}
+
+.fuelToggle {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.fuelYes .fuelToggle {
+  color: var(--color-available-text);
+}
+
+.fuelNo .fuelToggle {
+  color: var(--color-out-text);
+}
+
+/* ── Error ── */
+.error {
+  font-size: 14px;
+  color: var(--color-out-text);
+  text-align: center;
+  margin: 0;
+}
+
+/* ── Submit button ── */
+.submitBtn {
+  width: 100%;
+  padding: 16px;
+  background: var(--color-amber);
+  color: var(--color-dark);
+  border: none;
+  border-radius: var(--radius-button);
+  font-size: 16px;
+  font-weight: 800;
+  font-family: inherit;
+  cursor: pointer;
+  transition: transform 0.1s, opacity 0.1s;
+}
+
+.submitBtn:active {
+  transform: scale(0.97);
+}
+
+.submitBtn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.submitBtn:disabled:active {
+  transform: none;
+}
+
+/* ── Success screen ── */
+.success {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100dvh;
+  padding: 32px 24px;
+  text-align: center;
+}
+
+.successIcon {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: var(--color-available-bg);
+  color: var(--color-available);
+  font-size: 36px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+.successTitle {
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--color-dark);
+  margin: 0 0 8px;
+}
+
+.successSub {
+  font-size: 15px;
+  color: #888;
+  margin: 0 0 32px;
+}
+
+.successBtn {
+  display: block;
+  width: 100%;
+  padding: 16px;
+  background: var(--color-amber);
+  color: var(--color-dark);
+  border-radius: var(--radius-button);
+  font-size: 16px;
+  font-weight: 800;
+  text-decoration: none;
+  margin-bottom: 12px;
+  transition: transform 0.1s;
+}
+
+.successBtn:active {
+  transform: scale(0.97);
+}
+
+.successLink {
+  font-size: 14px;
+  color: #888;
+  text-decoration: none;
+}
+
+.successLink:active {
+  opacity: 0.7;
+}
