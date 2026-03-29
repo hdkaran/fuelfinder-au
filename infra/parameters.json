@@ -17,6 +17,12 @@
       // Environment label — used as a tag on all resources.
       // Allowed values: "prod" | "staging" | "dev"
       "value": "prod"
+    },
+    "customDomain": {
+      // Optional. Set to your custom domain once DNS is configured.
+      // e.g. "fuelfinder.com.au" or "www.fuelfinder.com.au"
+      // Leave empty to use Azure default hostnames.
+      "value": ""
     }
   }
 }

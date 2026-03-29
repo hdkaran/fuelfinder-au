@@ -1,5 +1,10 @@
 // Azure Static Web Apps for FuelFinder AU frontend (React/Vite)
 // Free tier — includes global CDN, CI/CD integration, and custom domains.
+//
+// Custom domain (optional):
+//   Set customDomain to your hostname (e.g. "fuelfinder.com.au").
+//   Add a CNAME/ALIAS record pointing customDomain → defaultHostname output.
+//   SWA validates domain ownership automatically using TXT records.
 
 @description('Base name prefix for resource names')
 param baseName string
@@ -9,6 +14,9 @@ param location string
 
 @description('Resource tags')
 param tags object
+
+@description('Optional custom domain hostname (e.g. "fuelfinder.com.au"). Leave empty to use the Azure default hostname.')
+param customDomain string = ''
 
 // Static Web App — Free tier
 resource staticWebApp 'Microsoft.Web/staticSites@2022-09-01' = {
@@ -26,6 +34,14 @@ resource staticWebApp 'Microsoft.Web/staticSites@2022-09-01' = {
       appBuildCommand: 'npm run build'
     }
   }
+}
+
+// Custom domain binding — only created when customDomain param is non-empty.
+// Pre-requisite: DNS record must exist before this resource is created.
+resource swaCustomDomain 'Microsoft.Web/staticSites/customDomains@2022-09-01' = if (!empty(customDomain)) {
+  parent: staticWebApp
+  name: customDomain
+  properties: {}
 }
 
 output defaultHostname string = staticWebApp.properties.defaultHostname

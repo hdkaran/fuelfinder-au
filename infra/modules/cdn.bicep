@@ -1,5 +1,10 @@
 // Azure CDN Profile + Endpoint for FuelFinder AU
 // Standard Microsoft tier — fronts the Static Web App for global edge caching.
+//
+// Custom domain (optional):
+//   1. Set customDomain param to your apex or subdomain (e.g. "fuelfinder.com.au" or "www.fuelfinder.com.au")
+//   2. Add a CNAME record pointing customDomain → cdnEndpointHostname output
+//   3. Re-run this Bicep to provision the CDN custom domain resource and enable managed HTTPS
 
 @description('Base name prefix for resource names')
 param baseName string
@@ -13,6 +18,9 @@ param tags object
 
 @description('Default hostname of the Static Web App — used as the CDN origin')
 param staticWebAppHostname string
+
+@description('Optional custom domain hostname (e.g. "fuelfinder.com.au"). Leave empty to use the default CDN hostname.')
+param customDomain string = ''
 
 // CDN Profile — Standard Microsoft tier
 resource cdnProfile 'Microsoft.Cdn/profiles@2023-05-01' = {
@@ -72,10 +80,51 @@ resource cdnEndpoint 'Microsoft.Cdn/profiles/endpoints@2023-05-01' = {
             }
           ]
         }
+        {
+          // SPA fallback — rewrite all non-file paths to /index.html so React
+          // Router handles client-side navigation correctly from the CDN edge.
+          name: 'SpaFallback'
+          order: 2
+          conditions: [
+            {
+              name: 'UrlFileExtension'
+              parameters: {
+                typeName: 'DeliveryRuleUrlFileExtensionMatchConditionParameters'
+                operator: 'LessThan'
+                negateCondition: false
+                matchValues: ['1']
+                transforms: []
+              }
+            }
+          ]
+          actions: [
+            {
+              name: 'UrlRewrite'
+              parameters: {
+                typeName: 'DeliveryRuleUrlRewriteActionParameters'
+                sourcePattern: '/'
+                destination: '/index.html'
+                preserveUnmatchedPath: false
+              }
+            }
+          ]
+        }
       ]
     }
   }
 }
 
+// Custom domain — only provisioned when customDomain param is non-empty.
+// Pre-requisite: CNAME record pointing customDomain → cdnEndpoint.properties.hostName
+// must exist in DNS before this resource is created, or Azure validation will fail.
+resource cdnCustomDomain 'Microsoft.Cdn/profiles/endpoints/customDomains@2023-05-01' = if (!empty(customDomain)) {
+  parent: cdnEndpoint
+  name: replace(customDomain, '.', '-')  // CDN resource name can't contain dots
+  properties: {
+    hostName: customDomain
+  }
+}
+
 output cdnEndpointHostname string = cdnEndpoint.properties.hostName
 output cdnEndpointName string = cdnEndpoint.name
+output cdnProfileName string = cdnProfile.name

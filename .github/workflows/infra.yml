@@ -44,3 +44,25 @@ jobs:
             --parameters @infra/parameters.json \
             --mode Incremental \
             --verbose
+
+      # ── Print deployed URLs ────────────────────────────────────────────────
+      - name: Print deployed resource URLs
+        run: |
+          OUTPUTS=$(az deployment group show \
+            --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
+            --name master \
+            --query properties.outputs \
+            --output json)
+
+          API_URL=$(echo $OUTPUTS | jq -r '.appServiceUrl.value')
+          SWA_URL=$(echo $OUTPUTS | jq -r '.staticWebAppUrl.value')
+          CDN_URL=$(echo $OUTPUTS | jq -r '.cdnUrl.value')
+          KV_NAME=$(echo $OUTPUTS | jq -r '.keyVaultName.value')
+
+          echo "## Deployed Resources" >> $GITHUB_STEP_SUMMARY
+          echo "| Resource | URL |" >> $GITHUB_STEP_SUMMARY
+          echo "|---|---|" >> $GITHUB_STEP_SUMMARY
+          echo "| API (App Service) | $API_URL |" >> $GITHUB_STEP_SUMMARY
+          echo "| Frontend (Static Web App) | $SWA_URL |" >> $GITHUB_STEP_SUMMARY
+          echo "| Frontend (CDN) | $CDN_URL |" >> $GITHUB_STEP_SUMMARY
+          echo "| Key Vault | $KV_NAME |" >> $GITHUB_STEP_SUMMARY

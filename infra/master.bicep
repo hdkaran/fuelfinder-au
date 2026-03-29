@@ -11,6 +11,9 @@ param location string = 'eastasia'
 @description('Environment tag value')
 param environment string = 'prod'
 
+@description('Optional custom domain (e.g. "fuelfinder.com.au"). Leave empty to use Azure default hostnames.')
+param customDomain string = ''
+
 // Shared tags applied to every resource
 var tags = {
   project: 'fuelfinder-au'
@@ -78,11 +81,25 @@ module staticWebApp 'modules/staticWebApp.bicep' = {
     baseName: baseName
     location: 'eastasia'
     tags: tags
+    customDomain: customDomain
+  }
+}
+
+// ---------- CDN (fronts the Static Web App) ----------
+module cdn 'modules/cdn.bicep' = {
+  name: 'cdn'
+  params: {
+    baseName: baseName
+    location: location
+    tags: tags
+    staticWebAppHostname: staticWebApp.outputs.defaultHostname
+    customDomain: customDomain
   }
 }
 
 // ---------- Outputs ----------
 output appServiceUrl string = appService.outputs.appServiceUrl
-output staticWebAppUrl string = staticWebApp.outputs.defaultHostname
+output staticWebAppUrl string = 'https://${staticWebApp.outputs.defaultHostname}'
+output cdnUrl string = 'https://${cdn.outputs.cdnEndpointHostname}'
 output acrLoginServer string = appService.outputs.acrLoginServer
 output keyVaultName string = keyVault.outputs.keyVaultName
