@@ -1,6 +1,7 @@
 import { useParams, Link } from 'react-router-dom';
 import { skipToken } from '@reduxjs/toolkit/query/react';
 import { useGetStationQuery } from '../api/fuelFinderApi';
+import PageHeader from '../components/PageHeader';
 import StatusPill from '../components/StatusPill';
 import FuelBadge from '../components/FuelBadge';
 import { formatMinutesAgo, pluralise } from '../utils/format';
@@ -23,11 +24,7 @@ export default function StationDetailPage() {
 
   return (
     <div className={styles.page}>
-      <header className={styles.header}>
-        <Link to="/" className={styles.back}>← Back</Link>
-        <h1 className={styles.name}>{station.name}</h1>
-        <p className={styles.brand}>{station.brand}</p>
-      </header>
+      <PageHeader backTo="/" title={station.name} subtitle={station.brand} />
 
       <main className={styles.main}>
         <div className={styles.statusRow}>
@@ -51,9 +48,9 @@ export default function StationDetailPage() {
           </div>
         </section>
 
-        <div className={styles.reportPlaceholder}>
-          <p>Know the current status? Report it — Phase 5</p>
-        </div>
+        <Link to={`/report/${station.id}`} className={styles.reportBtn}>
+          Report current status
+        </Link>
       </main>
     </div>
   );

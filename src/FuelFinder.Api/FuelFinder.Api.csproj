@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk.Web">
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
@@ -6,6 +6,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>FuelFinder.Api</RootNamespace>
     <AssemblyName>FuelFinder.Api</AssemblyName>
+    <UserSecretsId>9a1d041a-e543-44e2-af28-dcd3f7a32d7a</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>
