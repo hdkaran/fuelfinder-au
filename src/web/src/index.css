@@ -1,0 +1,63 @@
+:root {
+  /* Brand */
+  --color-amber: #f5a623;
+  --color-dark: #1a1a1a;
+  --color-bg: #f5f4f0;
+  --color-surface: #ffffff;
+
+  /* Status — available */
+  --color-available: #22c55e;
+  --color-available-bg: #f0fdf4;
+  --color-available-text: #15803d;
+
+  /* Status — low */
+  --color-low: #f97316;
+  --color-low-bg: #fff7ed;
+  --color-low-text: #c2410c;
+
+  /* Status — out */
+  --color-out: #ef4444;
+  --color-out-bg: #fef2f2;
+  --color-out-text: #b91c1c;
+
+  /* Border radii */
+  --radius-button: 16px;
+  --radius-card: 18px;
+  --radius-pill: 100px;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: 'Outfit', sans-serif;
+  background-color: var(--color-bg);
+  color: var(--color-dark);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Mobile-first: max 420px centred on desktop */
+#root {
+  max-width: 420px;
+  margin: 0 auto;
+  min-height: 100dvh;
+  background-color: var(--color-surface);
+  position: relative;
+}
+
+/* Active state for all interactive elements */
+button,
+a {
+  cursor: pointer;
+}
+
+button:active,
+a:active {
+  transform: scale(0.97);
+  transition: transform 0.1s;
+}
