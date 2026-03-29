@@ -1,5 +1,4 @@
 using System.Text.Json;
-using System.Text.Json.Serialization;
 using FuelFinder.Api.Data;
 using FuelFinder.Api.Models;
 using Microsoft.EntityFrameworkCore;
@@ -39,7 +38,8 @@ public class StationSeeder(
         var request = new HttpRequestMessage(HttpMethod.Get, $"{ApiBase}/lovs");
         request.Headers.Add("apikey", apiKey);
         request.Headers.Add("requesttimestamp", DateTime.Now.ToString("dd/MM/yyyy HH:mm:ss"));
-        request.Headers.Add("if-modified-since", "01/01/2010 00:00:00");
+        // if-modified-since must be RFC 7231 format for HttpHeaders to accept it
+        request.Headers.IfModifiedSince = new DateTimeOffset(2010, 1, 1, 0, 0, 0, TimeSpan.Zero);
 
         var response = await client.SendAsync(request, ct);
         response.EnsureSuccessStatusCode();
