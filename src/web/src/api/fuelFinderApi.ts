@@ -10,7 +10,11 @@ interface NearbyStationsParams {
 
 export const fuelFinderApi = createApi({
   reducerPath: 'fuelFinderApi',
-  baseQuery: fetchBaseQuery({ baseUrl: '/api' }),
+  baseQuery: fetchBaseQuery({
+    baseUrl: import.meta.env.VITE_API_BASE_URL
+      ? `${import.meta.env.VITE_API_BASE_URL}/api`
+      : '/api',
+  }),
   endpoints: (builder) => ({
     getNearbyStations: builder.query<StationDto[], NearbyStationsParams>({
       query: ({ lat, lng, radius, fuelType }) => ({

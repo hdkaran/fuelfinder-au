@@ -24,12 +24,20 @@ if (!string.IsNullOrEmpty(redisConn))
 else
     builder.Services.AddDistributedMemoryCache();
 
+// CORS — allows the Static Web Apps frontend to call the API cross-origin
+var allowedOrigins = builder.Configuration.GetSection("AllowedOrigins").Get<string[]>() ?? [];
+builder.Services.AddCors(options =>
+    options.AddDefaultPolicy(policy =>
+        policy.WithOrigins(allowedOrigins).AllowAnyMethod().AllowAnyHeader()));
+
 // Services
 builder.Services.AddScoped<StationQueryService>();
 builder.Services.AddScoped<ReportService>();
 builder.Services.AddScoped<StatsService>();
 
 var app = builder.Build();
+
+app.UseCors();
 
 // Endpoints
 var api = app.MapGroup("/api");

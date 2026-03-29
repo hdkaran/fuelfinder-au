@@ -13,6 +13,13 @@
   z-index: 10;
 }
 
+.headerTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 .title {
   font-size: 22px;
   font-weight: 800;
@@ -30,6 +37,39 @@
   color: rgba(255, 255, 255, 0.45);
   margin: 0;
   font-weight: 400;
+}
+
+/* ── List / Map toggle ───────────────────────────────────────────────────── */
+
+.toggle {
+  display: flex;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  padding: 3px;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.toggleBtn {
+  padding: 5px 14px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, transform 0.1s;
+}
+
+.toggleBtn:active {
+  transform: scale(0.97);
+}
+
+.toggleActive {
+  background: #fff;
+  color: var(--color-dark);
 }
 
 /* ── Stats banner ────────────────────────────────────────────────────────── */
