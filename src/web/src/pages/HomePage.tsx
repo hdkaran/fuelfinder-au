@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { skipToken } from '@reduxjs/toolkit/query/react';
 import { useGetNearbyStationsQuery, useGetStatsSummaryQuery } from '../api/fuelFinderApi';
 import StationCard from '../components/StationCard';
+import StationCardSkeleton from '../components/StationCardSkeleton';
 import StationMap from '../components/StationMap';
 import { pluralise } from '../utils/format';
 import styles from './HomePage.module.css';
@@ -9,6 +10,7 @@ import styles from './HomePage.module.css';
 type View = 'list' | 'map';
 
 const RADIUS_METRES = 5000;
+const SKELETON_COUNT = 4;
 
 interface Coords {
   lat: number;
@@ -32,7 +34,13 @@ export default function HomePage() {
     );
   }, []);
 
-  const { data: stations, isLoading: stationsLoading } = useGetNearbyStationsQuery(
+  const {
+    data: stations,
+    isLoading: stationsLoading,
+    isError: stationsError,
+    refetch,
+    isFetching,
+  } = useGetNearbyStationsQuery(
     coords ? { lat: coords.lat, lng: coords.lng, radius: RADIUS_METRES } : skipToken,
     { pollingInterval: coords ? 120_000 : undefined },
   );
@@ -40,6 +48,7 @@ export default function HomePage() {
   const { data: stats } = useGetStatsSummaryQuery(undefined, { pollingInterval: 60_000 });
 
   const hasStations = stations && stations.length > 0;
+  const showSkeletons = coords && stationsLoading;
 
   return (
     <div className={styles.page}>
@@ -51,22 +60,34 @@ export default function HomePage() {
             </h1>
             <p className={styles.subtitle}>Find fuel near you</p>
           </div>
-          {hasStations && (
-            <div className={styles.toggle}>
+          <div className={styles.headerActions}>
+            {hasStations && (
+              <div className={styles.toggle}>
+                <button
+                  className={`${styles.toggleBtn} ${view === 'list' ? styles.toggleActive : ''}`}
+                  onClick={() => setView('list')}
+                >
+                  List
+                </button>
+                <button
+                  className={`${styles.toggleBtn} ${view === 'map' ? styles.toggleActive : ''}`}
+                  onClick={() => setView('map')}
+                >
+                  Map
+                </button>
+              </div>
+            )}
+            {hasStations && (
               <button
-                className={`${styles.toggleBtn} ${view === 'list' ? styles.toggleActive : ''}`}
-                onClick={() => setView('list')}
+                className={`${styles.refreshBtn} ${isFetching ? styles.refreshing : ''}`}
+                onClick={() => refetch()}
+                disabled={isFetching}
+                aria-label="Refresh"
               >
-                List
+                ↻
               </button>
-              <button
-                className={`${styles.toggleBtn} ${view === 'map' ? styles.toggleActive : ''}`}
-                onClick={() => setView('map')}
-              >
-                Map
-              </button>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </header>
 
@@ -93,14 +114,23 @@ export default function HomePage() {
           </div>
         )}
 
-        {coords && stationsLoading && (
+        {showSkeletons && (
+          <ul className={styles.list}>
+            {Array.from({ length: SKELETON_COUNT }).map((_, i) => (
+              <li key={i}><StationCardSkeleton /></li>
+            ))}
+          </ul>
+        )}
+
+        {stationsError && (
           <div className={styles.centered}>
-            <span className={styles.icon}>⛽</span>
-            <p>Finding nearby stations…</p>
+            <span className={styles.icon}>⚠️</span>
+            <p className={styles.errorText}>Couldn't load stations.</p>
+            <button className={styles.retryBtn} onClick={() => refetch()}>Try again</button>
           </div>
         )}
 
-        {coords && !stationsLoading && stations?.length === 0 && (
+        {coords && !stationsLoading && !stationsError && stations?.length === 0 && (
           <div className={styles.centered}>
             <span className={styles.icon}>🔍</span>
             <p>No stations found within 5 km.</p>
