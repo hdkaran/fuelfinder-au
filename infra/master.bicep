@@ -34,17 +34,6 @@ module appInsights 'modules/appInsights.bicep' = {
   }
 }
 
-// ---------- Key Vault ----------
-module keyVault 'modules/keyVault.bicep' = {
-  name: 'keyVault'
-  params: {
-    baseName: baseName
-    location: location
-    tags: tags
-    appServicePrincipalId: '' // empty on first deploy — App Service doesn't exist yet
-  }
-}
-
 // ---------- SQL Server + Database ----------
 module sql 'modules/sql.bicep' = {
   name: 'sql'
@@ -67,6 +56,7 @@ module redis 'modules/redis.bicep' = {
 }
 
 // ---------- App Service (API) ----------
+// Deployed before Key Vault so we can pass the managed identity principal ID.
 module appService 'modules/appService.bicep' = {
   name: 'appService'
   params: {
@@ -74,7 +64,26 @@ module appService 'modules/appService.bicep' = {
     location: location
     tags: tags
     appInsightsConnectionString: appInsights.outputs.connectionString
-    keyVaultName: keyVault.outputs.keyVaultName
+    keyVaultName: '${baseName}-kv'  // Derived name — avoids circular dependency with keyVault module
+  }
+}
+
+// ---------- Key Vault ----------
+// Deployed after App Service (to get principalId), SQL, and Redis (to get real connection strings).
+// listKeys() retrieves the Redis primary access key inline during the Bicep deployment.
+module keyVault 'modules/keyVault.bicep' = {
+  name: 'keyVault'
+  params: {
+    baseName: baseName
+    location: location
+    tags: tags
+    appServicePrincipalId: appService.outputs.principalId
+    sqlFqdn: sql.outputs.sqlServerFqdn
+    sqlDatabaseName: sql.outputs.sqlDatabaseName
+    sqlAdminLogin: 'fueladmin'
+    sqlAdminPassword: sqlAdminPassword
+    redisHostName: redis.outputs.redisHostName
+    redisPrimaryKey: listKeys(resourceId('Microsoft.Cache/Redis', '${baseName}-redis'), '2023-04-01').primaryKey
   }
 }
 
