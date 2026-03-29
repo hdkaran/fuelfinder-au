@@ -39,13 +39,16 @@ builder.Services.AddScoped<StationSeeder>();
 
 var app = builder.Build();
 
-// Seed stations from NSW FuelCheck on first boot
+// Seed stations from NSW FuelCheck on first boot (skipped in test environments that remove StationSeeder)
 using (var scope = app.Services.CreateScope())
 {
-    var seeder = scope.ServiceProvider.GetRequiredService<StationSeeder>();
-    var seedLogger = scope.ServiceProvider.GetRequiredService<ILogger<StationSeeder>>();
-    try { await seeder.SeedAsync(); }
-    catch (Exception ex) { seedLogger.LogError(ex, "Station seeding failed — API will start without station data."); }
+    var seeder = scope.ServiceProvider.GetService<StationSeeder>();
+    if (seeder is not null)
+    {
+        var seedLogger = scope.ServiceProvider.GetRequiredService<ILogger<StationSeeder>>();
+        try { await seeder.SeedAsync(); }
+        catch (Exception ex) { seedLogger.LogError(ex, "Station seeding failed — API will start without station data."); }
+    }
 }
 
 app.UseCors();
@@ -59,3 +62,6 @@ api.MapStatsEndpoints();
 app.MapGet("/health", () => Results.Ok(new { status = "healthy" }));
 
 app.Run();
+
+// Expose Program to WebApplicationFactory in integration tests
+public partial class Program { }
