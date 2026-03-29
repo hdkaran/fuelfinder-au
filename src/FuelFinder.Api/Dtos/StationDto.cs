@@ -1,6 +1,6 @@
 namespace FuelFinder.Api.Dtos;
 
-record StationDto(
+public record StationDto(
     Guid Id,
     string Name,
     string Brand,
@@ -15,4 +15,4 @@ record StationDto(
     int ReportCount,
     int? LastReportMinutesAgo);
 
-record FuelAvailabilityDto(string FuelType, bool? Available);
+public record FuelAvailabilityDto(string FuelType, bool? Available);

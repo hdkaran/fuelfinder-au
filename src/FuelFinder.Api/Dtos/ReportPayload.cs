@@ -1,10 +1,10 @@
 namespace FuelFinder.Api.Dtos;
 
-record ReportPayload(
+public record ReportPayload(
     Guid StationId,
     string Status,
     IReadOnlyList<FuelTypePayload> FuelTypes,
     double Latitude,
     double Longitude);
 
-record FuelTypePayload(string FuelType, bool Available);
+public record FuelTypePayload(string FuelType, bool Available);
