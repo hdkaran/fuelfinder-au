@@ -85,21 +85,15 @@ module staticWebApp 'modules/staticWebApp.bicep' = {
   }
 }
 
-// ---------- CDN (fronts the Static Web App) ----------
-module cdn 'modules/cdn.bicep' = {
-  name: 'cdn'
-  params: {
-    baseName: baseName
-    location: location
-    tags: tags
-    staticWebAppHostname: staticWebApp.outputs.defaultHostname
-    customDomain: customDomain
-  }
-}
+// ---------- NOTE: CDN ----------
+// Azure CDN Standard from Microsoft (classic) no longer accepts new profile creation.
+// Static Web Apps Free tier already ships with built-in global CDN, so a separate
+// CDN profile is not required for this app.
+// If you need Azure Front Door Standard for custom WAF/routing rules in the future,
+// add a front-door.bicep module and wire it here.
 
 // ---------- Outputs ----------
 output appServiceUrl string = appService.outputs.appServiceUrl
 output staticWebAppUrl string = 'https://${staticWebApp.outputs.defaultHostname}'
-output cdnUrl string = 'https://${cdn.outputs.cdnEndpointHostname}'
 output acrLoginServer string = appService.outputs.acrLoginServer
 output keyVaultName string = keyVault.outputs.keyVaultName

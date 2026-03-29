@@ -16,7 +16,9 @@ sealed class StatsService(AppDbContext db, IDistributedCache cache)
         var cached = await cache.GetJsonAsync<StatsDto>(CacheKey, ct);
         if (cached is not null) return cached;
 
-        var todayUtc = DateTimeOffset.UtcNow.Date; // midnight UTC
+        // Use DateTimeOffset (not DateTime) — EF Core 10 is strict about comparing
+        // DateTimeOffset columns against DateTime values in LINQ queries.
+        var todayUtc = new DateTimeOffset(DateTimeOffset.UtcNow.Date, TimeSpan.Zero);
 
         var totalReportsToday = await db.Reports
             .CountAsync(r => r.CreatedAt >= todayUtc, ct);
