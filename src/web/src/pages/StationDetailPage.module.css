@@ -1,0 +1,96 @@
+.page {
+  min-height: 100dvh;
+  background: var(--color-bg);
+}
+
+.header {
+  background: var(--color-dark);
+  padding: 16px 16px 20px;
+}
+
+.back {
+  display: inline-block;
+  color: var(--color-amber);
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+
+.back:active {
+  opacity: 0.7;
+}
+
+.name {
+  font-size: 22px;
+  font-weight: 800;
+  color: #fff;
+  margin: 0 0 2px;
+  letter-spacing: -0.3px;
+}
+
+.brand {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.45);
+  margin: 0;
+}
+
+.main {
+  padding: 16px;
+}
+
+.statusRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.lastSeen {
+  font-size: 12px;
+  color: #aaa;
+}
+
+.address {
+  font-size: 14px;
+  color: #666;
+  margin: 0 0 20px;
+}
+
+.section {
+  background: var(--color-surface);
+  border-radius: var(--radius-card);
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.sectionTitle {
+  font-size: 13px;
+  font-weight: 700;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 0 0 12px;
+}
+
+.fuels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.centered {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 64px 24px;
+  color: #aaa;
+  font-size: 15px;
+}
+
+.reportPlaceholder {
+  text-align: center;
+  padding: 24px;
+  color: #bbb;
+  font-size: 13px;
+}

@@ -1,0 +1,31 @@
+.pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+  flex-shrink: 0;
+  letter-spacing: 0.01em;
+}
+
+.available {
+  background: var(--color-available-bg);
+  color: var(--color-available-text);
+}
+
+.low {
+  background: var(--color-low-bg);
+  color: var(--color-low-text);
+}
+
+.out {
+  background: var(--color-out-bg);
+  color: var(--color-out-text);
+}
+
+.unknown {
+  background: #f0f0f0;
+  color: #888;
+}
