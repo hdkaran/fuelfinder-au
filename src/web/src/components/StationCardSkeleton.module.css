@@ -1,0 +1,46 @@
+.card {
+  background: var(--color-surface);
+  border-radius: var(--radius-card);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.nameGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+}
+
+.fuels {
+  display: flex;
+  gap: 6px;
+}
+
+/* ── Shimmer animation ── */
+@keyframes shimmer {
+  0%   { background-position: -300px 0; }
+  100% { background-position: 300px 0; }
+}
+
+.bone {
+  border-radius: 6px;
+  background: linear-gradient(90deg, #ececec 25%, #f5f5f5 50%, #ececec 75%);
+  background-size: 600px 100%;
+  animation: shimmer 1.4s infinite linear;
+}
+
+.name  { height: 16px; width: 60%; }
+.brand { height: 12px; width: 30%; }
+.pill  { height: 24px; width: 70px; border-radius: var(--radius-pill); flex-shrink: 0; }
+.meta  { height: 12px; width: 75%; }
+.badge { height: 26px; width: 56px; border-radius: var(--radius-pill); }
