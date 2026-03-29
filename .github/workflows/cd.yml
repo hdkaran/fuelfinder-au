@@ -78,7 +78,7 @@ jobs:
         working-directory: src/FuelFinder.Api
         env:
           ConnectionStrings__SqlConnection: ${{ secrets.DB_CONNECTION_STRING }}
-        run: dotnet ef database update --no-build
+        run: dotnet ef database update
 
       # ── Deploy API to App Service ──────────────────────────────────────────
       - name: Deploy API to App Service
