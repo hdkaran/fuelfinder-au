@@ -14,56 +14,16 @@ using Xunit;
 namespace FuelFinder.Api.Tests;
 
 /// <summary>
-/// Factory with a rate limit of 2 reports per window — low enough to verify
-/// the 429 behaviour without waiting for real time to elapse.
+/// Each rate-limit test gets its own factory so the in-memory sliding window
+/// counter is fresh and tests don't interfere with each other.
 /// </summary>
-public class RateLimitFactory : WebApplicationFactory<Program>
+public class RateLimitTests
 {
-    private readonly string _dbName = "TestDb_RateLimit_" + Guid.NewGuid();
+    private static RateLimitFactory CreateFactory() => new();
 
-    protected override void ConfigureWebHost(IWebHostBuilder builder)
+    private static async Task<Guid> SeedStationAsync(RateLimitFactory factory)
     {
-        builder.ConfigureAppConfiguration(config =>
-            config.AddInMemoryCollection(new Dictionary<string, string?>
-            {
-                ["RateLimit:ReportsPerWindow"] = "2",
-                ["RateLimit:WindowMinutes"]    = "1",
-            }));
-
-        builder.ConfigureTestServices(services =>
-        {
-            var toRemove = services
-                .Where(d =>
-                    d.ServiceType == typeof(AppDbContext) ||
-                    d.ServiceType == typeof(DbContextOptions<AppDbContext>) ||
-                    d.ServiceType == typeof(DbContextOptions) ||
-                    (d.ServiceType.IsGenericType &&
-                     d.ServiceType.GetGenericTypeDefinition().FullName?
-                         .Contains("IDbContextOptionsConfiguration") == true &&
-                     d.ServiceType.GenericTypeArguments.Contains(typeof(AppDbContext))))
-                .ToList();
-            foreach (var d in toRemove) services.Remove(d);
-
-            services.AddDbContext<AppDbContext>(o => o.UseInMemoryDatabase(_dbName));
-            services.RemoveAll<StationSeeder>();
-        });
-    }
-}
-
-public class RateLimitTests : IClassFixture<RateLimitFactory>
-{
-    private readonly HttpClient _client;
-    private readonly RateLimitFactory _factory;
-
-    public RateLimitTests(RateLimitFactory factory)
-    {
-        _factory = factory;
-        _client  = factory.CreateClient();
-    }
-
-    private async Task<Guid> SeedStationAsync()
-    {
-        using var scope = _factory.Services.CreateScope();
+        using var scope = factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         var station = new Station
         {
@@ -84,7 +44,10 @@ public class RateLimitTests : IClassFixture<RateLimitFactory>
     [Fact]
     public async Task PostReport_Returns429_AfterLimitExceeded()
     {
-        var stationId = await SeedStationAsync();
+        await using var factory = CreateFactory();
+        var client    = factory.CreateClient();
+        var stationId = await SeedStationAsync(factory);
+
         object Payload() => new
         {
             stationId,
@@ -94,21 +57,22 @@ public class RateLimitTests : IClassFixture<RateLimitFactory>
             longitude = 151.2093,
         };
 
-        // First two requests should succeed (limit = 2)
-        var r1 = await _client.PostAsJsonAsync("/api/reports", Payload());
-        var r2 = await _client.PostAsJsonAsync("/api/reports", Payload());
+        var r1 = await client.PostAsJsonAsync("/api/reports", Payload());
+        var r2 = await client.PostAsJsonAsync("/api/reports", Payload());
         Assert.Equal(HttpStatusCode.Created, r1.StatusCode);
         Assert.Equal(HttpStatusCode.Created, r2.StatusCode);
 
-        // Third request must be rejected
-        var r3 = await _client.PostAsJsonAsync("/api/reports", Payload());
+        var r3 = await client.PostAsJsonAsync("/api/reports", Payload());
         Assert.Equal(HttpStatusCode.TooManyRequests, r3.StatusCode);
     }
 
     [Fact]
     public async Task PostReport_Returns429_WithRetryAfterHeader()
     {
-        var stationId = await SeedStationAsync();
+        await using var factory = CreateFactory();
+        var client    = factory.CreateClient();
+        var stationId = await SeedStationAsync(factory);
+
         object Payload() => new
         {
             stationId,
@@ -118,12 +82,41 @@ public class RateLimitTests : IClassFixture<RateLimitFactory>
             longitude = 151.2093,
         };
 
-        await _client.PostAsJsonAsync("/api/reports", Payload());
-        await _client.PostAsJsonAsync("/api/reports", Payload());
-        var rejected = await _client.PostAsJsonAsync("/api/reports", Payload());
+        await client.PostAsJsonAsync("/api/reports", Payload());
+        await client.PostAsJsonAsync("/api/reports", Payload());
+        var rejected = await client.PostAsJsonAsync("/api/reports", Payload());
 
         Assert.Equal(HttpStatusCode.TooManyRequests, rejected.StatusCode);
         Assert.True(rejected.Headers.Contains("Retry-After"),
             "429 response must include a Retry-After header");
+    }
+}
+
+public class RateLimitFactory : WebApplicationFactory<Program>
+{
+    private readonly string _dbName = "TestDb_RateLimit_" + Guid.NewGuid();
+
+    protected override void ConfigureWebHost(IWebHostBuilder builder)
+    {
+        builder.UseSetting("RateLimit:ReportsPerWindow", "2");
+        builder.UseSetting("RateLimit:WindowMinutes",    "1");
+
+        builder.ConfigureTestServices(services =>
+        {
+            var toRemove = services
+                .Where(d =>
+                    d.ServiceType == typeof(AppDbContext) ||
+                    d.ServiceType == typeof(DbContextOptions<AppDbContext>) ||
+                    d.ServiceType == typeof(DbContextOptions) ||
+                    (d.ServiceType.IsGenericType &&
+                     d.ServiceType.GetGenericTypeDefinition().FullName?
+                         .Contains("IDbContextOptionsConfiguration") == true &&
+                     d.ServiceType.GenericTypeArguments.Contains(typeof(AppDbContext))))
+                .ToList();
+            foreach (var d in toRemove) services.Remove(d);
+
+            services.AddDbContext<AppDbContext>(o => o.UseInMemoryDatabase(_dbName));
+            services.RemoveAll<StationSeeder>();
+        });
     }
 }

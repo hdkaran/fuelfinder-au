@@ -14,6 +14,14 @@ interface SearchStationsParams {
   lng?: number;
 }
 
+export interface PushSubscribePayload {
+  endpoint: string;
+  p256dh: string;
+  auth: string;
+  latitude: number;
+  longitude: number;
+}
+
 export const fuelFinderApi = createApi({
   reducerPath: 'fuelFinderApi',
   baseQuery: fetchBaseQuery({
@@ -53,6 +61,15 @@ export const fuelFinderApi = createApi({
         params: { q, ...(lat != null && lng != null ? { lat, lng } : {}) },
       }),
     }),
+    subscribePush: builder.mutation<void, PushSubscribePayload>({
+      query: (body) => ({ url: '/push/subscribe', method: 'POST', body }),
+    }),
+    unsubscribePush: builder.mutation<void, { endpoint: string }>({
+      query: ({ endpoint }) => ({
+        url: `/push/subscribe?endpoint=${encodeURIComponent(endpoint)}`,
+        method: 'DELETE',
+      }),
+    }),
   }),
 });
 
@@ -63,4 +80,6 @@ export const {
   useGetRecentReportsQuery,
   useGetStatsSummaryQuery,
   useSearchStationsQuery,
+  useSubscribePushMutation,
+  useUnsubscribePushMutation,
 } = fuelFinderApi;

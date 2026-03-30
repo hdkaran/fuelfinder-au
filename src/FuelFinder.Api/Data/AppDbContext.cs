@@ -8,6 +8,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<Station> Stations => Set<Station>();
     public DbSet<Report> Reports => Set<Report>();
     public DbSet<ReportFuelType> ReportFuelTypes => Set<ReportFuelType>();
+    public DbSet<PushRegistration> PushRegistrations => Set<PushRegistration>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -44,6 +45,16 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
              .HasForeignKey(rf => rf.ReportId)
              .OnDelete(DeleteBehavior.Cascade);
             e.HasIndex(rf => rf.ReportId);
+        });
+
+        modelBuilder.Entity<PushRegistration>(e =>
+        {
+            e.HasKey(p => p.Id);
+            e.Property(p => p.Endpoint).HasMaxLength(2048).IsRequired();
+            e.Property(p => p.P256dh).HasMaxLength(200).IsRequired();
+            e.Property(p => p.Auth).HasMaxLength(100).IsRequired();
+            e.HasIndex(p => p.Endpoint).IsUnique(); // prevent duplicate subscriptions
+            e.HasIndex(p => new { p.Latitude, p.Longitude }); // bounding-box queries
         });
     }
 }

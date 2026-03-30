@@ -71,6 +71,7 @@ builder.Services.AddScoped<StationQueryService>();
 builder.Services.AddScoped<ReportService>();
 builder.Services.AddScoped<StatsService>();
 builder.Services.AddScoped<StationSeeder>();
+builder.Services.AddScoped<PushService>();
 
 var app = builder.Build();
 
@@ -94,6 +95,7 @@ var api = app.MapGroup("/api");
 api.MapStationEndpoints();
 api.MapReportEndpoints();
 api.MapStatsEndpoints();
+api.MapPushEndpoints();
 
 app.MapGet("/health", () => Results.Ok(new { status = "healthy" }));
 
