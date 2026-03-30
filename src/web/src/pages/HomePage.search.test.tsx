@@ -83,6 +83,14 @@ function typeSearch(text: string) {
   act(() => { vi.advanceTimersByTime(400); });
 }
 
+// ── Extra fixtures for sort tests ─────────────────────────────────────────────
+const stationOut: StationDto = {
+  id: 's3', name: 'Caltex Surry Hills', brand: 'Caltex', address: '10 Crown St',
+  suburb: 'Surry Hills', state: 'NSW', latitude: -33.88, longitude: 151.21,
+  distanceMetres: 2000, status: 'out',
+  fuelAvailability: [], reportCount: 0, lastReportMinutesAgo: null,
+};
+
 // ── Tests ─────────────────────────────────────────────────────────────────────
 describe('HomePage — search integration', () => {
   it('renders the search bar on load', () => {
@@ -156,6 +164,14 @@ describe('HomePage — search integration', () => {
     expect(screen.queryByText('Shell Bondi')).not.toBeInTheDocument();
   });
 
+  it('hides the sort picker while a search is active', () => {
+    setupMocks({ nearby: [stationA, stationB], search: [stationA] });
+    renderPage();
+    expect(screen.getByRole('button', { name: 'Nearest' })).toBeInTheDocument();
+    typeSearch('Shell');
+    expect(screen.queryByRole('button', { name: 'Nearest' })).not.toBeInTheDocument();
+  });
+
   it('restores the radius picker after clearing the search', () => {
     setupMocks({ search: [stationA] });
     renderPage();
@@ -167,5 +183,49 @@ describe('HomePage — search integration', () => {
     act(() => { vi.advanceTimersByTime(400); });
 
     expect(screen.getByRole('button', { name: '5 km' })).toBeInTheDocument();
+  });
+});
+
+describe('HomePage — sort integration', () => {
+  it('sorts by status: available before low before out', () => {
+    // Provide stations in reverse order to confirm sorting reorders them
+    setupMocks({ nearby: [stationOut, stationB, stationA] });
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Available' }));
+
+    const items = screen.getAllByRole('listitem');
+    const texts = items.map((el) => el.textContent ?? '');
+    const aIdx = texts.findIndex((t) => t.includes('Shell Bondi'));
+    const bIdx = texts.findIndex((t) => t.includes('BP Newtown'));
+    const cIdx = texts.findIndex((t) => t.includes('Caltex Surry Hills'));
+    expect(aIdx).toBeLessThan(bIdx);
+    expect(bIdx).toBeLessThan(cIdx);
+  });
+
+  it('sorts by freshness: station with lower lastReportMinutesAgo appears first', () => {
+    setupMocks({ nearby: [stationB, stationA] }); // B=30 min, A=10 min
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Freshest' }));
+
+    const items = screen.getAllByRole('listitem');
+    const texts = items.map((el) => el.textContent ?? '');
+    const aIdx = texts.findIndex((t) => t.includes('Shell Bondi'));
+    const bIdx = texts.findIndex((t) => t.includes('BP Newtown'));
+    expect(aIdx).toBeLessThan(bIdx); // A (10 min ago) before B (30 min ago)
+  });
+
+  it('places null lastReportMinutesAgo last when sorting by freshness', () => {
+    setupMocks({ nearby: [stationOut, stationA] }); // Out has null, A has 10
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Freshest' }));
+
+    const items = screen.getAllByRole('listitem');
+    const texts = items.map((el) => el.textContent ?? '');
+    const aIdx = texts.findIndex((t) => t.includes('Shell Bondi'));
+    const outIdx = texts.findIndex((t) => t.includes('Caltex Surry Hills'));
+    expect(aIdx).toBeLessThan(outIdx);
   });
 });
