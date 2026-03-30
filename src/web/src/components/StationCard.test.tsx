@@ -70,7 +70,19 @@ describe('StationCard', () => {
 
   it('links to the station detail page', () => {
     renderCard();
-    const link = screen.getByRole('link');
-    expect(link).toHaveAttribute('href', '/stations/abc-123');
+    const links = screen.getAllByRole('link');
+    const detailLink = links.find((l) => l.getAttribute('href') === '/stations/abc-123');
+    expect(detailLink).toBeInTheDocument();
+  });
+
+  it('renders a directions link pointing to Google Maps with the station coordinates', () => {
+    renderCard();
+    const link = screen.getByRole('link', { name: /directions to Sydney BP/i });
+    expect(link).toHaveAttribute(
+      'href',
+      'https://www.google.com/maps/dir/?api=1&destination=-33.8688,151.2093',
+    );
+    expect(link).toHaveAttribute('target', '_blank');
+    expect(link).toHaveAttribute('rel', 'noopener noreferrer');
   });
 });
