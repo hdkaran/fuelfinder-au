@@ -5,11 +5,35 @@ import StationCard from '../components/StationCard';
 import StationCardSkeleton from '../components/StationCardSkeleton';
 import StationMap from '../components/StationMap';
 import RadiusPicker, { RADIUS_OPTIONS, type RadiusValue } from '../components/RadiusPicker';
+import SortPicker, { type SortValue } from '../components/SortPicker';
 import SearchBar from '../components/SearchBar';
 import { pluralise } from '../utils/format';
+import type { StationDto } from '../types';
 import styles from './HomePage.module.css';
 
 type View = 'list' | 'map';
+
+const STATUS_ORDER: Record<StationDto['status'], number> = {
+  available: 0,
+  low: 1,
+  out: 2,
+  unknown: 3,
+};
+
+function sortStations(list: StationDto[], sort: SortValue): StationDto[] {
+  const copy = [...list];
+  if (sort === 'status') {
+    return copy.sort((a, b) => STATUS_ORDER[a.status] - STATUS_ORDER[b.status]);
+  }
+  if (sort === 'freshness') {
+    return copy.sort((a, b) => {
+      if (a.lastReportMinutesAgo === null) return 1;
+      if (b.lastReportMinutesAgo === null) return -1;
+      return a.lastReportMinutesAgo - b.lastReportMinutesAgo;
+    });
+  }
+  return copy; // 'distance' — API already returns sorted by distance
+}
 
 const SKELETON_COUNT = 4;
 const STORAGE_KEY = 'fuelfinder:radius';
@@ -41,6 +65,7 @@ export default function HomePage() {
   const [radius, setRadius] = useState<RadiusValue>(readStoredRadius);
   const [searchInput, setSearchInput] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [sort, setSort] = useState<SortValue>('distance');
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   function handleRadiusChange(newRadius: RadiusValue) {
@@ -93,7 +118,8 @@ export default function HomePage() {
 
   const { data: stats } = useGetStatsSummaryQuery(undefined, { pollingInterval: 60_000 });
 
-  const stations = isSearching ? searchResults : nearbyStations;
+  const rawStations = isSearching ? searchResults : nearbyStations;
+  const stations = rawStations && !isSearching ? sortStations(rawStations, sort) : rawStations;
   const stationsLoading = isSearching ? searchLoading : nearbyLoading;
   const stationsError = isSearching ? searchError : nearbyError;
   const hasStations = stations && stations.length > 0;
@@ -151,6 +177,7 @@ export default function HomePage() {
       <SearchBar value={searchInput} onChange={handleSearchChange} />
 
       {!isSearching && <RadiusPicker value={radius} onChange={handleRadiusChange} />}
+      {!isSearching && hasStations && <SortPicker value={sort} onChange={setSort} />}
 
       <main className={styles.main}>
         {!isSearching && !coords && !geoError && (
