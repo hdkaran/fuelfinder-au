@@ -1,11 +1,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import type { StationDto } from '../types';
 
 // ── Stub geolocation so the component gets coords on mount ────────────────────
 const GEO_COORDS = { latitude: -33.8688, longitude: 151.2093 };
 beforeEach(() => {
-  Object.defineProperty(global.navigator, 'geolocation', {
+  Object.defineProperty(navigator, 'geolocation', {
     value: {
       getCurrentPosition: (success: PositionCallback) =>
         success({ coords: GEO_COORDS } as GeolocationPosition),
@@ -31,41 +32,41 @@ import { useGetNearbyStationsQuery, useSearchStationsQuery, useGetStatsSummaryQu
 import HomePage from './HomePage';
 
 // ── Fixture stations ──────────────────────────────────────────────────────────
-const stationA = {
+const stationA: StationDto = {
   id: 's1', name: 'Shell Bondi', brand: 'Shell', address: '1 Beach Rd',
   suburb: 'Bondi', state: 'NSW', latitude: -33.89, longitude: 151.27,
-  distanceMetres: 1200, status: 'available' as const,
+  distanceMetres: 1200, status: 'available',
   fuelAvailability: [], reportCount: 2, lastReportMinutesAgo: 10,
 };
-const stationB = {
+const stationB: StationDto = {
   id: 's2', name: 'BP Newtown', brand: 'BP', address: '5 King St',
   suburb: 'Newtown', state: 'NSW', latitude: -33.9, longitude: 151.18,
-  distanceMetres: 3400, status: 'low' as const,
+  distanceMetres: 3400, status: 'low',
   fuelAvailability: [], reportCount: 1, lastReportMinutesAgo: 30,
 };
 
 const noopRefetch = vi.fn();
 
 function setupMocks({
-  nearby = [] as typeof stationA[],
+  nearby = [] as StationDto[],
   nearbyLoading = false,
   nearbyError = false,
-  search = undefined as typeof stationA[] | undefined,
+  search = undefined as StationDto[] | undefined,
   searchLoading = false,
   searchError = false,
 } = {}) {
   vi.mocked(useGetNearbyStationsQuery).mockReturnValue({
     data: nearby, isLoading: nearbyLoading, isError: nearbyError,
     isFetching: false, refetch: noopRefetch,
-  } as ReturnType<typeof useGetNearbyStationsQuery>);
+  } as unknown as ReturnType<typeof useGetNearbyStationsQuery>);
 
   vi.mocked(useSearchStationsQuery).mockReturnValue({
     data: search, isLoading: searchLoading, isError: searchError,
-  } as ReturnType<typeof useSearchStationsQuery>);
+  } as unknown as ReturnType<typeof useSearchStationsQuery>);
 
   vi.mocked(useGetStatsSummaryQuery).mockReturnValue({
     data: undefined,
-  } as ReturnType<typeof useGetStatsSummaryQuery>);
+  } as unknown as ReturnType<typeof useGetStatsSummaryQuery>);
 }
 
 function renderPage() {
