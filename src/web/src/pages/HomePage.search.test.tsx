@@ -23,9 +23,11 @@ afterEach(() => {
 
 // ── Mock RTK Query hooks (no Redux store / network needed) ────────────────────
 vi.mock('../api/fuelFinderApi', () => ({
-  useGetNearbyStationsQuery: vi.fn(),
-  useSearchStationsQuery:    vi.fn(),
-  useGetStatsSummaryQuery:   vi.fn(),
+  useGetNearbyStationsQuery:  vi.fn(),
+  useSearchStationsQuery:     vi.fn(),
+  useGetStatsSummaryQuery:    vi.fn(),
+  useSubscribePushMutation:   vi.fn(() => [vi.fn()]),
+  useUnsubscribePushMutation: vi.fn(() => [vi.fn()]),
 }));
 
 import { useGetNearbyStationsQuery, useSearchStationsQuery, useGetStatsSummaryQuery } from '../api/fuelFinderApi';

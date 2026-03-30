@@ -7,6 +7,7 @@ import StationMap from '../components/StationMap';
 import RadiusPicker, { RADIUS_OPTIONS, type RadiusValue } from '../components/RadiusPicker';
 import SortPicker, { type SortValue } from '../components/SortPicker';
 import SearchBar from '../components/SearchBar';
+import NotificationBell from '../components/NotificationBell';
 import { pluralise } from '../utils/format';
 import type { StationDto } from '../types';
 import styles from './HomePage.module.css';
@@ -136,6 +137,7 @@ export default function HomePage() {
             <p className={styles.subtitle}>Find fuel near you</p>
           </div>
           <div className={styles.headerActions}>
+            <NotificationBell coords={coords} />
             {hasStations && !isSearching && (
               <div className={styles.toggle}>
                 <button

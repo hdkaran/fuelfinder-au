@@ -26,7 +26,7 @@ static class ReportEndpoints
             return id is null
                 ? Results.NotFound(new { error = $"Station {payload.StationId} not found." })
                 : Results.Created($"/api/reports/{id}", null);
-        });
+        }).RequireRateLimiting("reports");
 
         // GET /api/reports/recent?stationId=
         group.MapGet("/recent", async (

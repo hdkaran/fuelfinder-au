@@ -1,0 +1,23 @@
+.bell {
+  background: none;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 8px;
+  line-height: 1;
+  transition: transform 0.1s, opacity 0.1s;
+  opacity: 0.6;
+}
+
+.bell:hover {
+  opacity: 1;
+}
+
+.bell:active {
+  transform: scale(0.9);
+}
+
+.bell.active {
+  opacity: 1;
+}

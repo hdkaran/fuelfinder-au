@@ -7,7 +7,7 @@ using Microsoft.Extensions.Caching.Distributed;
 
 namespace FuelFinder.Api.Services;
 
-sealed class ReportService(AppDbContext db, IDistributedCache cache, StationQueryService stationCache)
+sealed class ReportService(AppDbContext db, IDistributedCache cache, StationQueryService stationCache, PushService push)
 {
     private static readonly TimeSpan RecentTtl = TimeSpan.FromSeconds(30);
     private const int RecentLimit = 10;
@@ -17,8 +17,8 @@ sealed class ReportService(AppDbContext db, IDistributedCache cache, StationQuer
     /// </summary>
     public async Task<Guid?> SubmitAsync(ReportPayload payload, CancellationToken ct)
     {
-        var stationExists = await db.Stations.AnyAsync(s => s.Id == payload.StationId, ct);
-        if (!stationExists) return null;
+        var station = await db.Stations.FirstOrDefaultAsync(s => s.Id == payload.StationId, ct);
+        if (station is null) return null;
 
         var report = new Report
         {
@@ -40,6 +40,9 @@ sealed class ReportService(AppDbContext db, IDistributedCache cache, StationQuer
         await stationCache.InvalidateAsync(payload.StationId, ct);
         await cache.RemoveSafeAsync($"reports:recent:{payload.StationId}", ct);
         await cache.RemoveSafeAsync("stats:summary", ct);
+
+        // Notify nearby subscribers (fire-and-forget — never blocks the response)
+        _ = push.NotifyNearbyAsync(station, payload.Status, ct);
 
         return report.Id;
     }

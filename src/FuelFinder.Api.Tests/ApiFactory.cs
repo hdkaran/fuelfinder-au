@@ -20,6 +20,9 @@ public class ApiFactory : WebApplicationFactory<Program>
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
+        // Raise rate limit so the test suite never trips it
+        builder.UseSetting("RateLimit:ReportsPerWindow", "1000");
+
         // ConfigureTestServices runs AFTER the app's ConfigureServices, so our
         // registrations here take precedence and cleanly override SQL Server.
         builder.ConfigureTestServices(services =>
