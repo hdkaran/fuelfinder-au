@@ -48,6 +48,46 @@ sealed class StationQueryService(AppDbContext db, IDistributedCache cache)
         return dto;
     }
 
+    public async Task<IReadOnlyList<StationDto>> SearchAsync(
+        string q, double? lat, double? lng, CancellationToken ct)
+    {
+        var term = q.Trim();
+        var cacheKey = $"stations:search:{term.ToLowerInvariant()}:{lat:F3}:{lng:F3}";
+        var cached = await cache.GetJsonAsync<IReadOnlyList<StationDto>>(cacheKey, ct);
+        if (cached is not null) return cached;
+
+        var cutoff = DateTimeOffset.UtcNow.AddHours(-RecentWindowHours);
+        var pattern = $"%{term}%";
+
+        var stations = await db.Stations
+            .Where(s => EF.Functions.Like(s.Name,    pattern)
+                     || EF.Functions.Like(s.Brand,   pattern)
+                     || EF.Functions.Like(s.Suburb,  pattern)
+                     || EF.Functions.Like(s.Address, pattern))
+            .Include(s => s.Reports.Where(r => r.CreatedAt >= cutoff))
+                .ThenInclude(r => r.FuelTypes)
+            .AsNoTracking()
+            .Take(50)
+            .ToListAsync(ct);
+
+        var results = stations
+            .Select(s =>
+            {
+                var dist = (lat.HasValue && lng.HasValue)
+                    ? Haversine(lat.Value, lng.Value, s.Latitude, s.Longitude)
+                    : 0;
+                var reports = s.Reports.OrderByDescending(r => r.CreatedAt).ToList();
+                return MapToDto(s, reports, dist);
+            })
+            .OrderBy(s => lat.HasValue ? s.DistanceMetres : 0)
+            .ThenBy(s => s.Name)
+            .Take(20)
+            .ToList();
+
+        await cache.SetJsonAsync(cacheKey, results, TimeSpan.FromMinutes(1), ct);
+        return results;
+    }
+
     public async Task InvalidateAsync(Guid stationId, CancellationToken ct)
     {
         await cache.RemoveSafeAsync($"station:{stationId}", ct);
