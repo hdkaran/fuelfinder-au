@@ -8,6 +8,12 @@ interface NearbyStationsParams {
   fuelType?: string;
 }
 
+interface SearchStationsParams {
+  q: string;
+  lat?: number;
+  lng?: number;
+}
+
 export const fuelFinderApi = createApi({
   reducerPath: 'fuelFinderApi',
   baseQuery: fetchBaseQuery({
@@ -41,6 +47,12 @@ export const fuelFinderApi = createApi({
     getStatsSummary: builder.query<StatsDto, void>({
       query: () => '/stats/summary',
     }),
+    searchStations: builder.query<StationDto[], SearchStationsParams>({
+      query: ({ q, lat, lng }) => ({
+        url: '/stations/search',
+        params: { q, ...(lat != null && lng != null ? { lat, lng } : {}) },
+      }),
+    }),
   }),
 });
 
@@ -50,4 +62,5 @@ export const {
   useSubmitReportMutation,
   useGetRecentReportsQuery,
   useGetStatsSummaryQuery,
+  useSearchStationsQuery,
 } = fuelFinderApi;

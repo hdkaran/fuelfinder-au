@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { skipToken } from '@reduxjs/toolkit/query/react';
-import { useGetNearbyStationsQuery, useGetStatsSummaryQuery } from '../api/fuelFinderApi';
+import { useGetNearbyStationsQuery, useGetStatsSummaryQuery, useSearchStationsQuery } from '../api/fuelFinderApi';
 import StationCard from '../components/StationCard';
 import StationCardSkeleton from '../components/StationCardSkeleton';
 import StationMap from '../components/StationMap';
 import RadiusPicker, { RADIUS_OPTIONS, type RadiusValue } from '../components/RadiusPicker';
+import SearchBar from '../components/SearchBar';
 import { pluralise } from '../utils/format';
 import styles from './HomePage.module.css';
 
@@ -13,6 +14,8 @@ type View = 'list' | 'map';
 const SKELETON_COUNT = 4;
 const STORAGE_KEY = 'fuelfinder:radius';
 const DEFAULT_RADIUS: RadiusValue = 5_000;
+const SEARCH_DEBOUNCE_MS = 400;
+const SEARCH_MIN_CHARS = 2;
 
 function readStoredRadius(): RadiusValue {
   try {
@@ -36,10 +39,21 @@ export default function HomePage() {
   const [geoError, setGeoError] = useState<string | null>(null);
   const [view, setView] = useState<View>('list');
   const [radius, setRadius] = useState<RadiusValue>(readStoredRadius);
+  const [searchInput, setSearchInput] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   function handleRadiusChange(newRadius: RadiusValue) {
     setRadius(newRadius);
     try { localStorage.setItem(STORAGE_KEY, String(newRadius)); } catch { /* ignore */ }
+  }
+
+  function handleSearchChange(value: string) {
+    setSearchInput(value);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      setSearchQuery(value.trim());
+    }, SEARCH_DEBOUNCE_MS);
   }
 
   useEffect(() => {
@@ -54,21 +68,36 @@ export default function HomePage() {
     );
   }, []);
 
+  const isSearching = searchQuery.length >= SEARCH_MIN_CHARS;
+
   const {
-    data: stations,
-    isLoading: stationsLoading,
-    isError: stationsError,
+    data: nearbyStations,
+    isLoading: nearbyLoading,
+    isError: nearbyError,
     refetch,
     isFetching,
   } = useGetNearbyStationsQuery(
-    coords ? { lat: coords.lat, lng: coords.lng, radius } : skipToken,
-    { pollingInterval: coords ? 120_000 : undefined },
+    coords && !isSearching ? { lat: coords.lat, lng: coords.lng, radius } : skipToken,
+    { pollingInterval: coords && !isSearching ? 120_000 : undefined },
+  );
+
+  const {
+    data: searchResults,
+    isLoading: searchLoading,
+    isError: searchError,
+  } = useSearchStationsQuery(
+    isSearching
+      ? { q: searchQuery, ...(coords ? { lat: coords.lat, lng: coords.lng } : {}) }
+      : skipToken,
   );
 
   const { data: stats } = useGetStatsSummaryQuery(undefined, { pollingInterval: 60_000 });
 
+  const stations = isSearching ? searchResults : nearbyStations;
+  const stationsLoading = isSearching ? searchLoading : nearbyLoading;
+  const stationsError = isSearching ? searchError : nearbyError;
   const hasStations = stations && stations.length > 0;
-  const showSkeletons = coords && stationsLoading;
+  const showSkeletons = stationsLoading;
 
   return (
     <div className={styles.page}>
@@ -81,7 +110,7 @@ export default function HomePage() {
             <p className={styles.subtitle}>Find fuel near you</p>
           </div>
           <div className={styles.headerActions}>
-            {hasStations && (
+            {hasStations && !isSearching && (
               <div className={styles.toggle}>
                 <button
                   className={`${styles.toggleBtn} ${view === 'list' ? styles.toggleActive : ''}`}
@@ -97,7 +126,7 @@ export default function HomePage() {
                 </button>
               </div>
             )}
-            {hasStations && (
+            {hasStations && !isSearching && (
               <button
                 className={`${styles.refreshBtn} ${isFetching ? styles.refreshing : ''}`}
                 onClick={() => refetch()}
@@ -119,17 +148,19 @@ export default function HomePage() {
         </div>
       )}
 
-      <RadiusPicker value={radius} onChange={handleRadiusChange} />
+      <SearchBar value={searchInput} onChange={handleSearchChange} />
+
+      {!isSearching && <RadiusPicker value={radius} onChange={handleRadiusChange} />}
 
       <main className={styles.main}>
-        {!coords && !geoError && (
+        {!isSearching && !coords && !geoError && (
           <div className={styles.centered}>
             <span className={styles.icon}>📍</span>
             <p>Getting your location…</p>
           </div>
         )}
 
-        {geoError && (
+        {!isSearching && geoError && (
           <div className={styles.centered}>
             <span className={styles.icon}>📍</span>
             <p className={styles.errorText}>{geoError}</p>
@@ -148,11 +179,20 @@ export default function HomePage() {
           <div className={styles.centered}>
             <span className={styles.icon}>⚠️</span>
             <p className={styles.errorText}>Couldn't load stations.</p>
-            <button className={styles.retryBtn} onClick={() => refetch()}>Try again</button>
+            {!isSearching && (
+              <button className={styles.retryBtn} onClick={() => refetch()}>Try again</button>
+            )}
           </div>
         )}
 
-        {coords && !stationsLoading && !stationsError && stations?.length === 0 && (
+        {!stationsLoading && !stationsError && isSearching && !hasStations && (
+          <div className={styles.centered}>
+            <span className={styles.icon}>🔍</span>
+            <p>No stations found for &ldquo;{searchQuery}&rdquo;.</p>
+          </div>
+        )}
+
+        {!isSearching && coords && !stationsLoading && !stationsError && stations?.length === 0 && (
           <div className={styles.centered}>
             <span className={styles.icon}>🔍</span>
             <p>No stations found within {RADIUS_OPTIONS.find((o) => o.value === radius)?.label}.</p>
@@ -160,7 +200,7 @@ export default function HomePage() {
           </div>
         )}
 
-        {hasStations && view === 'list' && (
+        {hasStations && (isSearching || view === 'list') && (
           <ul className={styles.list}>
             {stations.map((station) => (
               <li key={station.id}>
@@ -170,7 +210,7 @@ export default function HomePage() {
           </ul>
         )}
 
-        {hasStations && view === 'map' && (
+        {hasStations && !isSearching && view === 'map' && (
           <StationMap stations={stations} center={coords!} />
         )}
       </main>
