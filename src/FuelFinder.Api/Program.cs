@@ -1,7 +1,9 @@
+using System.Threading.RateLimiting;
 using Azure.Identity;
 using FuelFinder.Api.Data;
 using FuelFinder.Api.Endpoints;
 using FuelFinder.Api.Services;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -30,6 +32,39 @@ builder.Services.AddCors(options =>
     options.AddDefaultPolicy(policy =>
         policy.WithOrigins(allowedOrigins).AllowAnyMethod().AllowAnyHeader()));
 
+// Rate limiting — sliding window, keyed by client IP
+var permitLimit   = builder.Configuration.GetValue<int>("RateLimit:ReportsPerWindow", 5);
+var windowMinutes = builder.Configuration.GetValue<int>("RateLimit:WindowMinutes",    10);
+
+builder.Services.AddRateLimiter(options =>
+{
+    // Sliding window keyed by client IP — honours X-Forwarded-For from Azure App Service proxy
+    options.AddPolicy<string>("reports", httpContext =>
+    {
+        var ip = httpContext.Request.Headers["X-Forwarded-For"].FirstOrDefault()
+                 ?? httpContext.Connection.RemoteIpAddress?.ToString()
+                 ?? "unknown";
+        return RateLimitPartition.GetSlidingWindowLimiter(ip, _ => new SlidingWindowRateLimiterOptions
+        {
+            PermitLimit          = permitLimit,
+            Window               = TimeSpan.FromMinutes(windowMinutes),
+            SegmentsPerWindow    = 5,
+            QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+            QueueLimit           = 0,
+        });
+    });
+
+    options.OnRejected = async (ctx, token) =>
+    {
+        ctx.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+        ctx.HttpContext.Response.Headers.RetryAfter =
+            ((int)TimeSpan.FromMinutes(windowMinutes).TotalSeconds).ToString();
+        await ctx.HttpContext.Response.WriteAsJsonAsync(
+            new { error = "Too many reports. Please wait a few minutes before submitting again." },
+            token);
+    };
+});
+
 // Services
 builder.Services.AddHttpClient("FuelCheck");
 builder.Services.AddScoped<StationQueryService>();
@@ -52,6 +87,7 @@ using (var scope = app.Services.CreateScope())
 }
 
 app.UseCors();
+app.UseRateLimiter();
 
 // Endpoints
 var api = app.MapGroup("/api");
