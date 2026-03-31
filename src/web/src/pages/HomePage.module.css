@@ -127,6 +127,30 @@
   color: var(--color-dark);
 }
 
+.statsBannerBtn {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-dark);
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: rgba(26, 26, 26, 0.35);
+  text-underline-offset: 2px;
+  transition: opacity 0.1s, transform 0.1s;
+}
+
+.statsBannerBtn:active {
+  transform: scale(0.97);
+  opacity: 0.75;
+}
+
+.statsDot {
+  opacity: 0.55;
+}
+
 /* ── Main content ────────────────────────────────────────────────────────── */
 
 .main {
