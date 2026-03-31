@@ -1,4 +1,5 @@
 import { useRef } from 'react';
+import { Search, X } from 'lucide-react';
 import styles from './SearchBar.module.css';
 
 interface Props {
@@ -12,7 +13,7 @@ export default function SearchBar({ value, onChange, placeholder = 'Search by na
 
   return (
     <div className={styles.wrapper}>
-      <span className={styles.icon} aria-hidden>🔍</span>
+      <span className={styles.icon} aria-hidden><Search size={15} /></span>
       <input
         ref={inputRef}
         className={styles.input}
@@ -31,7 +32,7 @@ export default function SearchBar({ value, onChange, placeholder = 'Search by na
           onClick={() => { onChange(''); inputRef.current?.focus(); }}
           aria-label="Clear search"
         >
-          ✕
+          <X size={14} />
         </button>
       )}
     </div>

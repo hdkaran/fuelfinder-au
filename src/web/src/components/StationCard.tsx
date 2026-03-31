@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { Navigation } from 'lucide-react';
 import type { StationDto } from '../types';
 import { formatDistance, formatMinutesAgo, pluralise } from '../utils/format';
 import StatusPill from './StatusPill';
@@ -49,7 +50,7 @@ export default function StationCard({ station }: Props) {
           className={styles.directions}
           aria-label={`Get directions to ${station.name}`}
         >
-          Directions ↗
+          <Navigation size={12} /> Directions
         </a>
       </div>
     </div>

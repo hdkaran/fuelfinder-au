@@ -4,7 +4,9 @@
 }
 
 .back {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   color: var(--color-amber);
   text-decoration: none;
   font-size: 14px;

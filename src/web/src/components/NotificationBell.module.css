@@ -1,11 +1,13 @@
 .bell {
   background: none;
   border: none;
-  font-size: 20px;
   cursor: pointer;
   padding: 4px 6px;
   border-radius: 8px;
-  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
   transition: transform 0.1s, opacity 0.1s;
   opacity: 0.6;
 }
