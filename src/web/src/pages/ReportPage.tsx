@@ -24,13 +24,13 @@ export default function ReportPage() {
 
   const [status, setStatus] = useState<ReportStatus | null>(null);
   const [fuelAvailable, setFuelAvailable] = useState<Record<FuelType, boolean>>(ALL_AVAILABLE);
-  const [coords, setCoords] = useState({ lat: 0, lng: 0 });
+  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [submitReport, { isLoading, isSuccess, isError }] = useSubmitReportMutation();
 
   useEffect(() => {
     navigator.geolocation?.getCurrentPosition(
       (pos) => setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-      () => {},
+      () => { /* location denied — falls back to station coords on submit */ },
       { timeout: 10_000 },
     );
   }, []);
@@ -51,8 +51,8 @@ export default function ReportPage() {
         stationId,
         status,
         fuelTypes: FUEL_TYPES.map((ft) => ({ fuelType: ft, available: fuelAvailable[ft] })),
-        latitude: coords.lat,
-        longitude: coords.lng,
+        latitude:  coords?.lat ?? station?.latitude ?? 0,
+        longitude: coords?.lng ?? station?.longitude ?? 0,
       }).unwrap();
     } catch {
       // isError from mutation captures this

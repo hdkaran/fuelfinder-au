@@ -84,12 +84,12 @@ export default function HomePage() {
 
   useEffect(() => {
     if (!navigator.geolocation) {
-      setGeoError('Geolocation is not supported by your browser.');
+      setGeoError('Location not supported — search for a suburb or station above.');
       return;
     }
     navigator.geolocation.getCurrentPosition(
       (pos) => setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-      () => setGeoError('Enable location access to find nearby stations.'),
+      () => setGeoError('Location unavailable — search for a suburb or station above.'),
       { timeout: 10_000 },
     );
   }, []);
@@ -178,7 +178,7 @@ export default function HomePage() {
 
       <SearchBar value={searchInput} onChange={handleSearchChange} />
 
-      {!isSearching && <RadiusPicker value={radius} onChange={handleRadiusChange} />}
+      {!isSearching && coords && <RadiusPicker value={radius} onChange={handleRadiusChange} />}
       {!isSearching && hasStations && <SortPicker value={sort} onChange={setSort} />}
 
       <main className={styles.main}>
@@ -189,11 +189,8 @@ export default function HomePage() {
           </div>
         )}
 
-        {!isSearching && geoError && (
-          <div className={styles.centered}>
-            <span className={styles.icon}>📍</span>
-            <p className={styles.errorText}>{geoError}</p>
-          </div>
+        {geoError && !isSearching && (
+          <p className={styles.locationHint}>📍 {geoError}</p>
         )}
 
         {showSkeletons && (
