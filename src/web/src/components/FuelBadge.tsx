@@ -1,10 +1,12 @@
+import type { ReactNode } from 'react';
+import { Check, X, Minus } from 'lucide-react';
 import type { FuelType } from '../types';
 import styles from './FuelBadge.module.css';
 
-function availabilityStyle(available: boolean | null): { icon: string; cls: string } {
-  if (available === true)  return { icon: '✓', cls: styles.yes };
-  if (available === false) return { icon: '✗', cls: styles.no };
-  return { icon: '?', cls: styles.unknown };
+function availabilityIcon(available: boolean | null): { icon: ReactNode; cls: string } {
+  if (available === true)  return { icon: <Check size={10} strokeWidth={2.5} />, cls: styles.yes };
+  if (available === false) return { icon: <X    size={10} strokeWidth={2.5} />, cls: styles.no };
+  return { icon: <Minus size={10} strokeWidth={2.5} />, cls: styles.unknown };
 }
 
 interface Props {
@@ -13,7 +15,7 @@ interface Props {
 }
 
 export default function FuelBadge({ fuelType, available }: Props) {
-  const { icon, cls } = availabilityStyle(available);
+  const { icon, cls } = availabilityIcon(available);
   const label = fuelType === 'Premium' ? 'Prem' : fuelType;
 
   return (

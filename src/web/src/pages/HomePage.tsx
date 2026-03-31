@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { RefreshCw, Fuel, MapPin, AlertTriangle, Search } from 'lucide-react';
 import { skipToken } from '@reduxjs/toolkit/query/react';
 import { useGetNearbyStationsQuery, useGetStatsSummaryQuery, useSearchStationsQuery } from '../api/fuelFinderApi';
 import StationCard from '../components/StationCard';
@@ -161,7 +162,7 @@ export default function HomePage() {
                 disabled={isFetching}
                 aria-label="Refresh"
               >
-                ↻
+                <RefreshCw size={17} />
               </button>
             )}
           </div>
@@ -170,7 +171,7 @@ export default function HomePage() {
 
       {stats && (
         <div className={styles.statsBanner}>
-          ⛽ {pluralise(stats.totalReportsToday, 'report')} today
+          <Fuel size={14} /> {pluralise(stats.totalReportsToday, 'report')} today
           &nbsp;·&nbsp;
           {pluralise(stats.stationsAffected, 'station')} affected
         </div>
@@ -184,13 +185,13 @@ export default function HomePage() {
       <main className={styles.main}>
         {!isSearching && !coords && !geoError && (
           <div className={styles.centered}>
-            <span className={styles.icon}>📍</span>
+            <MapPin size={40} />
             <p>Getting your location…</p>
           </div>
         )}
 
         {geoError && !isSearching && (
-          <p className={styles.locationHint}>📍 {geoError}</p>
+          <p className={styles.locationHint}><MapPin size={14} /> {geoError}</p>
         )}
 
         {showSkeletons && (
@@ -203,7 +204,7 @@ export default function HomePage() {
 
         {stationsError && (
           <div className={styles.centered}>
-            <span className={styles.icon}>⚠️</span>
+            <AlertTriangle size={40} />
             <p className={styles.errorText}>Couldn't load stations.</p>
             {!isSearching && (
               <button className={styles.retryBtn} onClick={() => refetch()}>Try again</button>
@@ -213,14 +214,14 @@ export default function HomePage() {
 
         {!stationsLoading && !stationsError && isSearching && !hasStations && (
           <div className={styles.centered}>
-            <span className={styles.icon}>🔍</span>
+            <Search size={40} />
             <p>No stations found for &ldquo;{searchQuery}&rdquo;.</p>
           </div>
         )}
 
         {!isSearching && coords && !stationsLoading && !stationsError && stations?.length === 0 && (
           <div className={styles.centered}>
-            <span className={styles.icon}>🔍</span>
+            <Search size={40} />
             <p>No stations found within {RADIUS_OPTIONS.find((o) => o.value === radius)?.label}.</p>
             <p className={styles.hint}>Try a larger radius or be the first to report a station near you.</p>
           </div>

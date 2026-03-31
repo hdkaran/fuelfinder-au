@@ -1,3 +1,4 @@
+import { Bell, BellOff } from 'lucide-react';
 import { usePushNotifications } from '../hooks/usePushNotifications';
 import styles from './NotificationBell.module.css';
 
@@ -18,7 +19,7 @@ export default function NotificationBell({ coords }: Props) {
       aria-label={isSubscribed ? 'Disable nearby fuel alerts' : 'Enable nearby fuel alerts'}
       title={isSubscribed ? 'Notifications on' : 'Get notified when fuel is reported near you'}
     >
-      {isSubscribed ? '🔔' : '🔕'}
+      {isSubscribed ? <Bell size={20} /> : <BellOff size={20} />}
     </button>
   );
 }

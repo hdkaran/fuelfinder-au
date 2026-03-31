@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { CheckCircle, Check, X as XIcon } from 'lucide-react';
 import { useParams, Link } from 'react-router-dom';
 import { skipToken } from '@reduxjs/toolkit/query/react';
 import { useGetStationQuery, useSubmitReportMutation } from '../api/fuelFinderApi';
@@ -63,7 +64,7 @@ export default function ReportPage() {
     return (
       <div className={styles.page}>
         <div className={styles.success}>
-          <div className={styles.successIcon}>✓</div>
+          <div className={styles.successIcon}><CheckCircle size={36} /></div>
           <h2 className={styles.successTitle}>Report submitted</h2>
           <p className={styles.successSub}>Thanks for helping other drivers!</p>
           <Link to={`/stations/${stationId}`} className={styles.successBtn}>
@@ -111,7 +112,7 @@ export default function ReportPage() {
                 >
                   <span className={styles.fuelName}>{ft}</span>
                   <span className={styles.fuelToggle}>
-                    {fuelAvailable[ft] ? '✓ Available' : '✗ Out'}
+                    {fuelAvailable[ft] ? <><Check size={13} /> Available</> : <><XIcon size={13} /> Out</>}
                   </span>
                 </button>
               ))}
