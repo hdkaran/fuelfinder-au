@@ -18,6 +18,12 @@ param appInsightsConnectionString string
 @description('Key Vault name — used to construct Key Vault reference URIs in app settings')
 param keyVaultName string
 
+@description('Optional custom domain for the API (e.g. "api.fuelstock.com.au"). Leave empty to use the Azure default hostname. DNS CNAME must point to the App Service default hostname before setting this.')
+param customDomainApi string = ''
+
+@description('Allowed CORS origins for the API (e.g. ["https://fuelstock.com.au","https://www.fuelstock.com.au"])')
+param allowedOrigins array = []
+
 // Azure Container Registry — Basic SKU
 resource acr 'Microsoft.ContainerRegistry/registries@2023-01-01-preview' = {
   // ACR names must be alphanumeric (no hyphens), 5–50 chars.
@@ -111,8 +117,45 @@ resource appService 'Microsoft.Web/sites@2022-09-01' = {
           name: 'DOCKER_REGISTRY_SERVER_URL'
           value: 'https://${acr.properties.loginServer}'
         }
-      ]
+        // CORS — populated from allowedOrigins param (supports any number of origins)
+        // ASP.NET Core reads AllowedOrigins__0, AllowedOrigins__1, … as a string array.
+      ] + [for (origin, i) in allowedOrigins: {
+        name: 'AllowedOrigins__${i}'
+        value: origin
+      }]
     }
+  }
+}
+
+// ── Custom domain + managed SSL cert ─────────────────────────────────────────
+// Pre-requisite: DNS CNAME api.fuelstock.com.au → App Service default hostname
+// must exist before this resource is deployed, or Azure cert validation will fail.
+//
+// Azure App Service Managed Certificate is free and auto-renews.
+// The cert uses the canonicalName (the CNAME that points to azurewebsites.net)
+// to prove domain ownership — no HTTP challenge file or manual DNS TXT needed.
+
+resource apiManagedCert 'Microsoft.Web/certificates@2022-09-01' = if (!empty(customDomainApi)) {
+  name: '${baseName}-api-cert'
+  location: location
+  tags: tags
+  properties: {
+    serverFarmId: appServicePlan.id
+    canonicalName: customDomainApi   // Must match the CNAME pointing to azurewebsites.net
+  }
+}
+
+// Hostname binding with SNI SSL enabled using the managed cert thumbprint.
+// Creating the binding and cert in a single pass works because Bicep resolves
+// the cert thumbprint output before writing the binding.
+resource apiCustomHostname 'Microsoft.Web/sites/hostNameBindings@2022-09-01' = if (!empty(customDomainApi)) {
+  parent: appService
+  name: customDomainApi
+  properties: {
+    siteName: appService.name
+    hostNameType: 'Verified'
+    sslState: 'SniEnabled'
+    thumbprint: apiManagedCert.properties.thumbprint
   }
 }
 

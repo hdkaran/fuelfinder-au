@@ -30,9 +30,9 @@ pnpm-debug.log*
 .env.local
 .env.*.local
 .env.development
-.env.production
 .env.staging
 *.env
+# .env.production is intentionally committed — it contains only the public API URL, no secrets
 
 # ── .NET / Backend ────────────────────────────────────────────────────────────
 bin/
