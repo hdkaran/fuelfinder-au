@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { ChevronDown, X } from 'lucide-react';
+import { ChevronDown, X, MapPin, CheckCircle, Clock, Map } from 'lucide-react';
+import { type LucideIcon } from 'lucide-react';
 import { RADIUS_OPTIONS, type RadiusValue } from './RadiusPicker';
 import { type SortValue } from './SortPicker';
 import { type StateFilter } from './StatePicker';
@@ -11,10 +12,10 @@ import styles from './FilterBar.module.css';
 const DEFAULT_RADIUS: RadiusValue = 5_000;
 const DEFAULT_STATE: StateFilter = 'All';
 
-const SORT_SEGMENTS: { label: string; value: SortValue; icon: string }[] = [
-  { label: 'Nearest',   value: 'distance',  icon: '📍' },
-  { label: 'Available', value: 'status',    icon: '✅' },
-  { label: 'Freshest',  value: 'freshness', icon: '🕐' },
+const SORT_SEGMENTS: { label: string; value: SortValue; icon: LucideIcon }[] = [
+  { label: 'Nearest',   value: 'distance',  icon: MapPin       },
+  { label: 'Available', value: 'status',    icon: CheckCircle  },
+  { label: 'Freshest',  value: 'freshness', icon: Clock        },
 ];
 
 const DISTANCE_OPTIONS = RADIUS_OPTIONS.map((o) => ({
@@ -70,15 +71,14 @@ export default function FilterBar({
         {/* ── Row 1: Segmented sort control ─────────────────────────────── */}
         <div className={styles.segmentedRow}>
           <div className={styles.segmented} role="group" aria-label="Sort stations">
-            {SORT_SEGMENTS.map(({ label, value, icon }) => (
+            {SORT_SEGMENTS.map(({ label, value, icon: Icon }) => (
               <button
                 key={value}
                 className={`${styles.segment} ${sort === value ? styles.segmentActive : ''}`}
                 onClick={() => onSortChange(value)}
                 aria-pressed={sort === value}
               >
-                {/* icon is decorative — excluded from accessible name */}
-                <span className={styles.segmentIcon} aria-hidden="true">{icon}</span>
+                <Icon size={14} aria-hidden="true" className={styles.segmentIcon} />
                 {label}
               </button>
             ))}
@@ -93,8 +93,7 @@ export default function FilterBar({
               className={`${styles.chip} ${!isDistanceDefault ? styles.chipActive : ''}`}
               onClick={() => setOpenSheet('distance')}
             >
-              <span aria-hidden="true" className={styles.chipEmoji}>📍</span>
-              {/* Text node contributes to accessible name; decorations do not */}
+              <MapPin size={13} aria-hidden="true" className={styles.chipIcon} />
               {distanceLabel}
               <ChevronDown
                 size={13}
@@ -119,7 +118,7 @@ export default function FilterBar({
               className={`${styles.chip} ${!isStateDefault ? styles.chipActive : ''}`}
               onClick={() => setOpenSheet('state')}
             >
-              <span aria-hidden="true" className={styles.chipEmoji}>🗺</span>
+              <Map size={13} aria-hidden="true" className={styles.chipIcon} />
               {stateLabel}
               <ChevronDown
                 size={13}
