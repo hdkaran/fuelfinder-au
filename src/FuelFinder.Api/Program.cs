@@ -67,23 +67,33 @@ builder.Services.AddRateLimiter(options =>
 
 // Services
 builder.Services.AddHttpClient("FuelCheck");
+builder.Services.AddHttpClient("FuelWatch");
 builder.Services.AddScoped<StationQueryService>();
 builder.Services.AddScoped<ReportService>();
 builder.Services.AddScoped<StatsService>();
 builder.Services.AddScoped<StationSeeder>();
+builder.Services.AddScoped<WaStationSeeder>();
 builder.Services.AddScoped<PushService>();
 
 var app = builder.Build();
 
-// Seed stations from NSW FuelCheck on first boot (skipped in test environments that remove StationSeeder)
+// Seed stations on first boot — each seeder checks its own state independently
 using (var scope = app.Services.CreateScope())
 {
-    var seeder = scope.ServiceProvider.GetService<StationSeeder>();
-    if (seeder is not null)
+    var nswSeeder = scope.ServiceProvider.GetService<StationSeeder>();
+    if (nswSeeder is not null)
     {
-        var seedLogger = scope.ServiceProvider.GetRequiredService<ILogger<StationSeeder>>();
-        try { await seeder.SeedAsync(); }
-        catch (Exception ex) { seedLogger.LogError(ex, "Station seeding failed — API will start without station data."); }
+        var log = scope.ServiceProvider.GetRequiredService<ILogger<StationSeeder>>();
+        try { await nswSeeder.SeedAsync(); }
+        catch (Exception ex) { log.LogError(ex, "NSW station seeding failed."); }
+    }
+
+    var waSeeder = scope.ServiceProvider.GetService<WaStationSeeder>();
+    if (waSeeder is not null)
+    {
+        var log = scope.ServiceProvider.GetRequiredService<ILogger<WaStationSeeder>>();
+        try { await waSeeder.SeedAsync(); }
+        catch (Exception ex) { log.LogError(ex, "WA station seeding failed."); }
     }
 }
 
