@@ -26,9 +26,9 @@ public class StationSeeder(
             return;
         }
 
-        if (await db.Stations.AnyAsync(ct))
+        if (await db.Stations.AnyAsync(s => s.State == "NSW", ct))
         {
-            logger.LogInformation("Stations table already populated — skipping seed.");
+            logger.LogInformation("NSW stations already present — skipping NSW seed.");
             return;
         }
 
