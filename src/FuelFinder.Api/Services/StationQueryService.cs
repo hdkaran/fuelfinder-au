@@ -9,16 +9,22 @@ namespace FuelFinder.Api.Services;
 
 sealed class StationQueryService(AppDbContext db, IDistributedCache cache)
 {
-    private static readonly TimeSpan NearbyTtl = TimeSpan.FromMinutes(2);
+    private static readonly TimeSpan NearbyTtl  = TimeSpan.FromMinutes(2);
     private static readonly TimeSpan StationTtl = TimeSpan.FromMinutes(2);
+    private static readonly TimeSpan GenTtl     = TimeSpan.FromHours(12);
     private const int RecentWindowHours = 4;
     private static readonly string[] AllFuelTypes = ["Diesel", "ULP", "E10", "Premium"];
+
+    // Tracks how many reports have been submitted. Included in nearby/search cache keys so
+    // that any new report instantly busts all station-list caches across all lat/lng/radius combos.
+    private const string StationsGenKey = "stations:gen";
 
     public async Task<IReadOnlyList<StationDto>> GetNearbyAsync(
         double lat, double lng, double radiusMetres, string? fuelType, CancellationToken ct)
     {
-        var cacheKey = $"stations:nearby:{lat:F3}:{lng:F3}:{radiusMetres}:{fuelType ?? "all"}";
-        var cached = await cache.GetJsonAsync<IReadOnlyList<StationDto>>(cacheKey, ct);
+        var gen      = await cache.GetJsonAsync<long>(StationsGenKey, ct);
+        var cacheKey = $"stations:nearby:{lat:F3}:{lng:F3}:{radiusMetres}:{fuelType ?? "all"}:g{gen}";
+        var cached   = await cache.GetJsonAsync<IReadOnlyList<StationDto>>(cacheKey, ct);
         if (cached is not null) return cached;
 
         var result = await QueryNearbyFromDbAsync(lat, lng, radiusMetres, fuelType, ct);
@@ -51,9 +57,10 @@ sealed class StationQueryService(AppDbContext db, IDistributedCache cache)
     public async Task<IReadOnlyList<StationDto>> SearchAsync(
         string q, double? lat, double? lng, CancellationToken ct)
     {
-        var term = q.Trim();
-        var cacheKey = $"stations:search:{term.ToLowerInvariant()}:{lat:F3}:{lng:F3}";
-        var cached = await cache.GetJsonAsync<IReadOnlyList<StationDto>>(cacheKey, ct);
+        var term     = q.Trim();
+        var gen      = await cache.GetJsonAsync<long>(StationsGenKey, ct);
+        var cacheKey = $"stations:search:{term.ToLowerInvariant()}:{lat:F3}:{lng:F3}:g{gen}";
+        var cached   = await cache.GetJsonAsync<IReadOnlyList<StationDto>>(cacheKey, ct);
         if (cached is not null) return cached;
 
         var cutoff = DateTimeOffset.UtcNow.AddHours(-RecentWindowHours);
@@ -91,6 +98,11 @@ sealed class StationQueryService(AppDbContext db, IDistributedCache cache)
     public async Task InvalidateAsync(Guid stationId, CancellationToken ct)
     {
         await cache.RemoveSafeAsync($"station:{stationId}", ct);
+
+        // Bump the generation so all nearby/search list caches are instantly stale.
+        // Old versioned keys expire naturally via NearbyTtl.
+        var gen  = await cache.GetJsonAsync<long>(StationsGenKey, ct);
+        await cache.SetJsonAsync(StationsGenKey, gen + 1, GenTtl, ct);
     }
 
     // ── Private helpers ────────────────────────────────────────────────────────
