@@ -63,6 +63,13 @@ resource appServicePlan 'Microsoft.Web/serverfarms@2022-09-01' = {
 // for App Service (names must be globally unique across all of Azure).
 var uniqueSuffix = take(uniqueString(resourceGroup().id), 6)
 
+// CORS app settings — built as a variable so a for-expression can be used.
+// ASP.NET Core reads AllowedOrigins__0, AllowedOrigins__1, … as a string array.
+var corsAppSettings = [for (origin, i) in allowedOrigins: {
+  name: 'AllowedOrigins__${i}'
+  value: origin
+}]
+
 // App Service — Docker container hosting the .NET API
 resource appService 'Microsoft.Web/sites@2022-09-01' = {
   name: '${baseName}-api-${uniqueSuffix}'
@@ -84,8 +91,9 @@ resource appService 'Microsoft.Web/sites@2022-09-01' = {
       ftpsState: 'Disabled'
       minTlsVersion: '1.2'
       http20Enabled: true
-      // App settings — Key Vault references use the @Microsoft.KeyVault() syntax
-      appSettings: [
+      // App settings — Key Vault references use the @Microsoft.KeyVault() syntax.
+      // concat() merges the static settings with the dynamic corsAppSettings variable.
+      appSettings: concat([
         {
           name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
           value: appInsightsConnectionString
@@ -117,12 +125,7 @@ resource appService 'Microsoft.Web/sites@2022-09-01' = {
           name: 'DOCKER_REGISTRY_SERVER_URL'
           value: 'https://${acr.properties.loginServer}'
         }
-        // CORS — populated from allowedOrigins param (supports any number of origins)
-        // ASP.NET Core reads AllowedOrigins__0, AllowedOrigins__1, … as a string array.
-      ] + [for (origin, i) in allowedOrigins: {
-        name: 'AllowedOrigins__${i}'
-        value: origin
-      }]
+      ], corsAppSettings)
     }
   }
 }
@@ -155,7 +158,7 @@ resource apiCustomHostname 'Microsoft.Web/sites/hostNameBindings@2022-09-01' = i
     siteName: appService.name
     hostNameType: 'Verified'
     sslState: 'SniEnabled'
-    thumbprint: apiManagedCert.properties.thumbprint
+    thumbprint: apiManagedCert.?properties.thumbprint ?? ''
   }
 }
 
