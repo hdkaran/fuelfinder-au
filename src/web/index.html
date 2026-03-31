@@ -1,17 +1,56 @@
 <!doctype html>
-<html lang="en">
+<html lang="en-AU">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>FuelStock — Find fuel near you</title>
-    <meta name="description" content="Find fuel near you during shortages" />
+    <title>FuelStock — Find petrol near you in Australia</title>
+    <meta name="description" content="FuelStock helps Australians find petrol stations with fuel during shortages. Real-time crowdsourced reports from drivers near you — check availability before you drive." />
+    <meta name="keywords" content="petrol shortage Australia, find fuel near me, petrol availability, fuel stock Australia, crowdsourced fuel reports" />
+    <link rel="canonical" href="https://fuelstock.com.au" />
+
+    <!-- Favicon -->
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="/icon-192.png" sizes="192x192" type="image/png" />
+    <link rel="apple-touch-icon" href="/icon-192.png" />
+
+    <!-- PWA -->
     <meta name="theme-color" content="#f5a623" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="FuelStock" />
     <link rel="manifest" href="/manifest.json" />
-    <link rel="apple-touch-icon" href="/icon-192.png" />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://fuelstock.com.au" />
+    <meta property="og:site_name" content="FuelStock" />
+    <meta property="og:title" content="FuelStock — Find petrol near you in Australia" />
+    <meta property="og:description" content="Check which petrol stations near you have fuel right now. Crowdsourced reports from drivers across Australia." />
+    <meta property="og:image" content="https://fuelstock.com.au/icon-512.png" />
+    <meta property="og:locale" content="en_AU" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="FuelStock — Find petrol near you in Australia" />
+    <meta name="twitter:description" content="Check which petrol stations near you have fuel right now. Crowdsourced reports from drivers across Australia." />
+    <meta name="twitter:image" content="https://fuelstock.com.au/icon-512.png" />
+
+    <!-- Structured data -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "FuelStock",
+      "url": "https://fuelstock.com.au",
+      "description": "Crowdsourced petrol availability tracker for Australia. Find fuel near you during shortages.",
+      "applicationCategory": "UtilitiesApplication",
+      "operatingSystem": "Any",
+      "offers": { "@type": "Offer", "price": "0", "priceCurrency": "AUD" },
+      "areaServed": { "@type": "Country", "name": "Australia" }
+    }
+    </script>
+
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link

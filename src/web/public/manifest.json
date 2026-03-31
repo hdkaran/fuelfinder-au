@@ -1,7 +1,7 @@
 {
-  "name": "FuelFinder AU",
-  "short_name": "FuelFinder",
-  "description": "Find fuel near you during shortages",
+  "name": "FuelStock",
+  "short_name": "FuelStock",
+  "description": "Crowdsourced petrol availability tracker for Australia. Find fuel near you during shortages.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#1a1a1a",
