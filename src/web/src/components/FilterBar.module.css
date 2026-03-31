@@ -48,8 +48,7 @@
 }
 
 .segmentIcon {
-  font-size: 14px;
-  line-height: 1;
+  flex-shrink: 0;
 }
 
 /* ── Row 2: Context chips ─────────────────────────────────────────────────── */
@@ -109,9 +108,8 @@
   font-weight: 700;
 }
 
-.chipEmoji {
-  font-size: 13px;
-  line-height: 1;
+.chipIcon {
+  flex-shrink: 0;
 }
 
 .chipCaret {
