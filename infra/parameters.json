@@ -19,9 +19,20 @@
       "value": "prod"
     },
     "customDomain": {
-      // Optional. Set to your custom domain once DNS is configured.
-      // e.g. "fuelfinder.com.au" or "www.fuelfinder.com.au"
-      // Leave empty to use Azure default hostnames.
+      // Frontend apex domain — served by Azure Static Web Apps.
+      // DNS: alias A record @ → SWA resource ID (handled by dns.bicep).
+      // Leave empty on first deploy; set after getting Azure nameservers and updating registrar.
+      "value": "fuelstock.com.au"
+    },
+    "customDomainApi": {
+      // API subdomain — served by Azure App Service.
+      // DNS: CNAME api → App Service default hostname (handled by dns.bicep).
+      // Pre-requisite: deploy without this first, add the CNAME, then set this value.
+      "value": "api.fuelstock.com.au"
+    },
+    "swaValidationToken": {
+      // SWA domain ownership token — get from Azure Portal → Static Web App → Custom domains.
+      // Set and re-deploy to provision the asuid TXT record for SSL cert validation.
       "value": ""
     }
   }
