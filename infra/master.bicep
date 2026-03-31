@@ -14,11 +14,8 @@ param environment string = 'prod'
 @description('Optional custom domain for the frontend SWA (e.g. "fuelstock.com.au"). Leave empty to use Azure default hostnames.')
 param customDomain string = ''
 
-@description('Optional custom domain for the API (e.g. "api.fuelstock.com.au"). DNS CNAME must exist first.')
+@description('Optional custom domain for the API (e.g. "api.fuelstock.com.au"). GoDaddy CNAME must point to the App Service default hostname before setting this.')
 param customDomainApi string = ''
-
-@description('SWA domain ownership validation token. Get from Azure Portal after first deploy.')
-param swaValidationToken string = ''
 
 @description('SQL administrator password. Required on every deploy to prevent Bicep from resetting it to a new random value.')
 @secure()
@@ -61,8 +58,20 @@ module redis 'modules/redis.bicep' = {
   }
 }
 
+// ---------- Static Web App ----------
+// Note: Static Web Apps only available in specific regions — using eastasia (closest to AU)
+module staticWebApp 'modules/staticWebApp.bicep' = {
+  name: 'staticWebApp'
+  params: {
+    baseName: baseName
+    location: 'eastasia'
+    tags: tags
+    customDomain: customDomain
+  }
+}
+
 // ---------- App Service (API) ----------
-// Deployed before Key Vault so we can pass the managed identity principal ID.
+// Deployed after Static Web App so its default hostname is available for CORS.
 module appService 'modules/appService.bicep' = {
   name: 'appService'
   params: {
@@ -72,7 +81,7 @@ module appService 'modules/appService.bicep' = {
     appInsightsConnectionString: appInsights.outputs.connectionString
     keyVaultName: '${baseName}-kv'  // Derived name — avoids circular dependency with keyVault module
     customDomainApi: customDomainApi
-    // CORS origins — always allow the SWA default hostname; add custom domain when set
+    // CORS — always allow the SWA default hostname; add custom domain when set
     allowedOrigins: empty(customDomain)
       ? ['https://${staticWebApp.outputs.defaultHostname}']
       : [
@@ -102,33 +111,6 @@ module keyVault 'modules/keyVault.bicep' = {
   }
 }
 
-// ---------- Static Web App ----------
-// Note: Static Web Apps only available in specific regions — using eastasia (closest to AU)
-module staticWebApp 'modules/staticWebApp.bicep' = {
-  name: 'staticWebApp'
-  params: {
-    baseName: baseName
-    location: 'eastasia'
-    tags: tags
-    customDomain: customDomain
-  }
-}
-
-// ---------- Azure DNS Zone ----------
-// Only deployed when a custom domain is configured.
-// Outputs the 4 Azure nameservers to set at your registrar (VentraIP / Crazy Domains).
-module dns 'modules/dns.bicep' = if (!empty(customDomain)) {
-  name: 'dns'
-  params: {
-    apexDomain: customDomain
-    staticWebAppHostname: staticWebApp.outputs.defaultHostname
-    staticWebAppId: staticWebApp.outputs.staticWebAppId
-    appServiceHostname: replace(appService.outputs.appServiceUrl, 'https://', '')
-    swaValidationToken: swaValidationToken
-    tags: tags
-  }
-}
-
 // ---------- NOTE: CDN ----------
 // Azure CDN Standard from Microsoft (classic) no longer accepts new profile creation.
 // Static Web Apps Free tier already ships with built-in global CDN, so a separate
@@ -138,8 +120,8 @@ module dns 'modules/dns.bicep' = if (!empty(customDomain)) {
 
 // ---------- Outputs ----------
 output appServiceUrl string = appService.outputs.appServiceUrl
+output appServiceHostname string = replace(appService.outputs.appServiceUrl, 'https://', '')
 output staticWebAppUrl string = 'https://${staticWebApp.outputs.defaultHostname}'
+output staticWebAppHostname string = staticWebApp.outputs.defaultHostname
 output acrLoginServer string = appService.outputs.acrLoginServer
 output keyVaultName string = keyVault.outputs.keyVaultName
-output dnsNameServers array = !empty(customDomain) ? dns.outputs.nameServers : []
-output registrarInstructions string = !empty(customDomain) ? dns.outputs.registrarInstructions : 'No custom domain configured'
