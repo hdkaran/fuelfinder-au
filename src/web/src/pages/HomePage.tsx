@@ -151,12 +151,14 @@ export default function HomePage() {
                 <button
                   className={`${styles.toggleBtn} ${view === 'list' ? styles.toggleActive : ''}`}
                   onClick={() => setView('list')}
+                  aria-pressed={view === 'list'}
                 >
                   List
                 </button>
                 <button
                   className={`${styles.toggleBtn} ${view === 'map' ? styles.toggleActive : ''}`}
                   onClick={() => setView('map')}
+                  aria-pressed={view === 'map'}
                 >
                   Map
                 </button>

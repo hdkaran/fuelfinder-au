@@ -28,7 +28,7 @@
 }
 
 .statusUnknown {
-  border-left-color: #d1d5db;
+  border-left-color: var(--color-unknown);
 }
 
 /* Dim unknown cards slightly */
