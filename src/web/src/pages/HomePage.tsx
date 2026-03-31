@@ -9,6 +9,8 @@ import RadiusPicker, { RADIUS_OPTIONS, type RadiusValue } from '../components/Ra
 import SortPicker, { type SortValue } from '../components/SortPicker';
 import SearchBar from '../components/SearchBar';
 import NotificationBell from '../components/NotificationBell';
+import StatePicker, { type StateFilter } from '../components/StatePicker';
+import StatsModal, { type StatsModalMode } from '../components/StatsModal';
 import { pluralise } from '../utils/format';
 import type { StationDto } from '../types';
 import styles from './HomePage.module.css';
@@ -68,6 +70,8 @@ export default function HomePage() {
   const [searchInput, setSearchInput] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [sort, setSort] = useState<SortValue>('distance');
+  const [stateFilter, setStateFilter] = useState<StateFilter>('All');
+  const [statsModal, setStatsModal] = useState<StatsModalMode | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   function handleRadiusChange(newRadius: RadiusValue) {
@@ -121,7 +125,10 @@ export default function HomePage() {
   const { data: stats } = useGetStatsSummaryQuery(undefined, { pollingInterval: 60_000 });
 
   const rawStations = isSearching ? searchResults : nearbyStations;
-  const stations = rawStations && !isSearching ? sortStations(rawStations, sort) : rawStations;
+  const filteredStations = rawStations && stateFilter !== 'All'
+    ? rawStations.filter((s) => s.state === stateFilter)
+    : rawStations;
+  const stations = filteredStations && !isSearching ? sortStations(filteredStations, sort) : filteredStations;
   const stationsLoading = isSearching ? searchLoading : nearbyLoading;
   const stationsError = isSearching ? searchError : nearbyError;
   const hasStations = stations && stations.length > 0;
@@ -133,7 +140,7 @@ export default function HomePage() {
         <div className={styles.headerTop}>
           <div>
             <h1 className={styles.title}>
-              <span className={styles.accent}>Fuel</span>Finder AU
+              <span className={styles.accent}>Fuel</span>Stock
             </h1>
             <p className={styles.subtitle}>Find fuel near you</p>
           </div>
@@ -171,15 +178,27 @@ export default function HomePage() {
 
       {stats && (
         <div className={styles.statsBanner}>
-          <Fuel size={14} /> {pluralise(stats.totalReportsToday, 'report')} today
-          &nbsp;·&nbsp;
-          {pluralise(stats.stationsAffected, 'station')} affected
+          <Fuel size={14} />
+          <button
+            className={styles.statsBannerBtn}
+            onClick={() => setStatsModal('reports')}
+          >
+            {pluralise(stats.totalReportsToday, 'report')} today
+          </button>
+          <span className={styles.statsDot}>·</span>
+          <button
+            className={styles.statsBannerBtn}
+            onClick={() => setStatsModal('stations')}
+          >
+            {pluralise(stats.stationsAffected, 'station')} affected
+          </button>
         </div>
       )}
 
       <SearchBar value={searchInput} onChange={handleSearchChange} />
 
       {!isSearching && coords && <RadiusPicker value={radius} onChange={handleRadiusChange} />}
+      <StatePicker value={stateFilter} onChange={setStateFilter} />
       {!isSearching && hasStations && <SortPicker value={sort} onChange={setSort} />}
 
       <main className={styles.main}>
@@ -241,6 +260,8 @@ export default function HomePage() {
           <StationMap stations={stations} center={coords!} />
         )}
       </main>
+
+      <StatsModal mode={statsModal} onClose={() => setStatsModal(null)} />
     </div>
   );
 }

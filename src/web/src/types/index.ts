@@ -51,3 +51,22 @@ export interface StatsDto {
   stationsAffected: number;
   lastUpdated: string; // ISO 8601
 }
+
+export interface TodayReportDto {
+  id: string;
+  stationId: string;
+  stationName: string;
+  stationAddress: string;
+  status: ReportStatus;
+  minutesAgo: number;
+}
+
+export interface AffectedStationDto {
+  id: string;
+  name: string;
+  address: string;
+  suburb: string;
+  state: string;
+  latestStatus: ReportStatus;
+  reportCount: number;
+}

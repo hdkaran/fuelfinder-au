@@ -1,5 +1,5 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
-import type { StationDto, ReportDto, ReportPayload, StatsDto } from '../types';
+import type { StationDto, ReportDto, ReportPayload, StatsDto, TodayReportDto, AffectedStationDto } from '../types';
 
 interface NearbyStationsParams {
   lat: number;
@@ -74,6 +74,14 @@ export const fuelFinderApi = createApi({
       }),
       providesTags: ['SearchStations'],
     }),
+    getTodayReports: builder.query<TodayReportDto[], void>({
+      query: () => '/stats/reports-today',
+      providesTags: ['Stats'],
+    }),
+    getAffectedStations: builder.query<AffectedStationDto[], void>({
+      query: () => '/stats/affected-stations',
+      providesTags: ['Stats'],
+    }),
     subscribePush: builder.mutation<void, PushSubscribePayload>({
       query: (body) => ({ url: '/push/subscribe', method: 'POST', body }),
     }),
@@ -92,6 +100,8 @@ export const {
   useSubmitReportMutation,
   useGetRecentReportsQuery,
   useGetStatsSummaryQuery,
+  useGetTodayReportsQuery,
+  useGetAffectedStationsQuery,
   useSearchStationsQuery,
   useSubscribePushMutation,
   useUnsubscribePushMutation,
