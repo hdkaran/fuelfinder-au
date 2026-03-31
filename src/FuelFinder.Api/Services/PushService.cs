@@ -140,7 +140,7 @@ sealed class PushService(AppDbContext db, IConfiguration config, ILogger<PushSer
             string.IsNullOrEmpty(publicKey) ||
             string.IsNullOrEmpty(privateKey))
         {
-            logger.LogDebug("VAPID keys not configured — push notifications disabled.");
+            logger.LogWarning("VAPID keys not fully configured — push notifications are disabled. Set Vapid:PrivateKey in Key Vault.");
             return null;
         }
 
