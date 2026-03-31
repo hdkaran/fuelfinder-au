@@ -5,11 +5,12 @@ import { useGetNearbyStationsQuery, useGetStatsSummaryQuery, useSearchStationsQu
 import StationCard from '../components/StationCard';
 import StationCardSkeleton from '../components/StationCardSkeleton';
 import StationMap from '../components/StationMap';
-import RadiusPicker, { RADIUS_OPTIONS, type RadiusValue } from '../components/RadiusPicker';
-import SortPicker, { type SortValue } from '../components/SortPicker';
+import { RADIUS_OPTIONS, type RadiusValue } from '../components/RadiusPicker';
+import { type SortValue } from '../components/SortPicker';
 import SearchBar from '../components/SearchBar';
 import NotificationBell from '../components/NotificationBell';
-import StatePicker, { type StateFilter } from '../components/StatePicker';
+import { type StateFilter } from '../components/StatePicker';
+import FilterBar from '../components/FilterBar';
 import StatsModal, { type StatsModalMode } from '../components/StatsModal';
 import { pluralise } from '../utils/format';
 import type { StationDto } from '../types';
@@ -199,9 +200,16 @@ export default function HomePage() {
 
       <SearchBar value={searchInput} onChange={handleSearchChange} />
 
-      {!isSearching && coords && <RadiusPicker value={radius} onChange={handleRadiusChange} />}
-      <StatePicker value={stateFilter} onChange={setStateFilter} />
-      {!isSearching && hasStations && <SortPicker value={sort} onChange={setSort} />}
+      {!isSearching && coords && (
+        <FilterBar
+          sort={sort}
+          onSortChange={setSort}
+          radius={radius}
+          onRadiusChange={handleRadiusChange}
+          stateFilter={stateFilter}
+          onStateChange={setStateFilter}
+        />
+      )}
 
       <main className={styles.main}>
         {!isSearching && !coords && !geoError && (

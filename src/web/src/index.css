@@ -2,9 +2,11 @@
   /* ── Brand colors ────────────────────────────────────────────────────────── */
   --color-amber:       #f5a623;
   --color-amber-dark:  #d97706;   /* amber on light bg — meets WCAG AA at 14px bold */
+  --color-amber-light: #fef3c7;   /* amber tint for active chip backgrounds */
   --color-dark:        #1a1a1a;
   --color-bg:          #f5f4f0;
   --color-surface:     #ffffff;
+  --color-slate:       #f1f5f9;   /* segmented control track background */
   --color-text-secondary: #6b7280;
   --color-border:      #e8e4dc;
 
