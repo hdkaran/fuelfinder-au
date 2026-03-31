@@ -26,6 +26,6 @@
 }
 
 .unknown {
-  background: #f0f0f0;
-  color: #888;
+  background: var(--color-unknown-bg);
+  color: var(--color-unknown-text);
 }
