@@ -1,46 +1,101 @@
 .page {
   min-height: 100dvh;
   background: var(--color-bg);
+  padding-bottom: 88px; /* space for sticky CTA */
 }
 
+/* ── Main content ────────────────────────────────────────────────────────── */
 
 .main {
   padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
+
+/* ── Status row ──────────────────────────────────────────────────────────── */
 
 .statusRow {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-bottom: 8px;
 }
 
 .lastSeen {
+  display: flex;
+  align-items: center;
+  gap: 4px;
   font-size: 12px;
   color: #aaa;
 }
 
+/* ── Address row ─────────────────────────────────────────────────────────── */
+
+.addressRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 .address {
+  display: flex;
+  align-items: flex-start;
+  gap: 5px;
   font-size: 14px;
   color: #666;
-  margin: 0 0 20px;
+  line-height: 1.4;
+  flex: 1;
 }
+
+.address svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: #bbb;
+}
+
+.directionsBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-dark);
+  text-decoration: none;
+  background: #f5f3ef;
+  border: 1px solid #e5e1d8;
+  border-radius: 8px;
+  padding: 6px 10px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: background 0.12s, transform 0.1s;
+}
+
+.directionsBtn:active {
+  transform: scale(0.95);
+  background: #ede9e2;
+}
+
+/* ── Section ─────────────────────────────────────────────────────────────── */
 
 .section {
   background: var(--color-surface);
   border-radius: var(--radius-card);
   padding: 16px;
-  margin-bottom: 16px;
 }
 
 .sectionTitle {
-  font-size: 13px;
+  font-size: 11px;
   font-weight: 700;
-  color: #888;
+  color: #aaa;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.07em;
   margin: 0 0 12px;
+  padding-left: 8px;
+  border-left: 3px solid var(--color-amber);
 }
+
+/* ── Fuel badges ─────────────────────────────────────────────────────────── */
 
 .fuels {
   display: flex;
@@ -48,13 +103,68 @@
   gap: 8px;
 }
 
-.centered {
+/* ── Recent reports list ─────────────────────────────────────────────────── */
+
+.reportList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.reportItem {
   display: flex;
   align-items: center;
-  justify-content: center;
-  padding: 64px 24px;
-  color: #aaa;
-  font-size: 15px;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.reportBadge {
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+}
+
+.reportAvailable {
+  background: var(--color-available-bg);
+  color: var(--color-available-text);
+}
+
+.reportLow {
+  background: var(--color-low-bg);
+  color: var(--color-low-text);
+}
+
+.reportOut {
+  background: var(--color-out-bg);
+  color: var(--color-out-text);
+}
+
+.reportQueue {
+  background: #fffbeb;
+  color: #92400e;
+}
+
+.reportTime {
+  font-size: 12px;
+  color: #bbb;
+}
+
+/* ── Sticky CTA footer ───────────────────────────────────────────────────── */
+
+.stickyFooter {
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: 420px;
+  padding: 12px 16px 20px;
+  background: linear-gradient(to top, #fff 60%, transparent);
+  pointer-events: none;
 }
 
 .reportBtn {
@@ -69,8 +179,21 @@
   text-align: center;
   text-decoration: none;
   transition: transform 0.1s;
+  box-shadow: 0 4px 16px rgba(245, 166, 35, 0.35);
+  pointer-events: auto;
 }
 
 .reportBtn:active {
   transform: scale(0.97);
+}
+
+/* ── Loading / not found ─────────────────────────────────────────────────── */
+
+.centered {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 64px 24px;
+  color: #aaa;
+  font-size: 15px;
 }

@@ -6,6 +6,13 @@ import StatusPill from './StatusPill';
 import FuelBadge from './FuelBadge';
 import styles from './StationCard.module.css';
 
+const STATUS_CLASS: Record<string, string> = {
+  available: styles.statusAvailable,
+  low:       styles.statusLow,
+  out:       styles.statusOut,
+  unknown:   styles.statusUnknown,
+};
+
 interface Props {
   station: StationDto;
 }
@@ -20,7 +27,7 @@ export default function StationCard({ station }: Props) {
     `https://www.google.com/maps/dir/?api=1&destination=${station.latitude},${station.longitude}`;
 
   return (
-    <div className={styles.card}>
+    <div className={`${styles.card} ${STATUS_CLASS[station.status] ?? ''}`}>
       <Link to={`/stations/${station.id}`} className={styles.cardBody}>
         <div className={styles.top}>
           <div className={styles.nameGroup}>
