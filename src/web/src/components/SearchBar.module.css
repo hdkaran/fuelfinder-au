@@ -1,0 +1,63 @@
+.wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  padding: 10px 16px;
+  background: var(--color-bg);
+  border-bottom: 1px solid #eee;
+}
+
+.icon {
+  position: absolute;
+  left: 28px;
+  pointer-events: none;
+  opacity: 0.5;
+  display: flex;
+  align-items: center;
+}
+
+.input {
+  width: 100%;
+  padding: 10px 36px 10px 36px;
+  border: 1.5px solid #e0ddd6;
+  border-radius: var(--radius-button);
+  background: #fff;
+  font-size: 15px;
+  font-family: inherit;
+  font-weight: 400;
+  color: var(--color-dark);
+  outline: none;
+  transition: border-color 0.15s;
+  /* hide native clear button — we render our own */
+  -webkit-appearance: none;
+}
+
+.input::placeholder {
+  color: #bbb;
+}
+
+.input:focus {
+  border-color: var(--color-amber);
+}
+
+/* hide the browser-native X in search inputs */
+.input::-webkit-search-cancel-button {
+  display: none;
+}
+
+.clear {
+  position: absolute;
+  right: 28px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 13px;
+  color: #999;
+  padding: 4px;
+  line-height: 1;
+  transition: color 0.1s;
+}
+
+.clear:hover {
+  color: var(--color-dark);
+}

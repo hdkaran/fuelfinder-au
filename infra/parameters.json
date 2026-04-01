@@ -17,6 +17,19 @@
       // Environment label — used as a tag on all resources.
       // Allowed values: "prod" | "staging" | "dev"
       "value": "prod"
+    },
+    "customDomain": {
+      // Frontend apex domain (e.g. "fuelstock.com.au").
+      // IMPORTANT: Leave empty until GoDaddy DNS records are in place (see docs/dns-setup.md).
+      // Azure validates DNS before binding — deploying with a value before DNS exists will fail.
+      // Set via GitHub Actions variable CUSTOM_DOMAIN instead of editing this file.
+      "value": ""
+    },
+    "customDomainApi": {
+      // API subdomain (e.g. "api.fuelstock.com.au").
+      // IMPORTANT: Leave empty until the GoDaddy CNAME for 'api' is added.
+      // Set via GitHub Actions variable CUSTOM_DOMAIN_API instead of editing this file.
+      "value": ""
     }
   }
 }

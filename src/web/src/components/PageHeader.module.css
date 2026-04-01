@@ -4,12 +4,16 @@
 }
 
 .back {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   color: var(--color-amber);
   text-decoration: none;
-  font-size: 14px;
+  font-size: var(--text-sm);
   font-weight: 600;
   margin-bottom: 12px;
+  min-height: 44px;    /* accessible tap target */
+  padding-top: 4px;
 }
 
 .back:active {
@@ -17,15 +21,17 @@
 }
 
 .title {
-  font-size: 22px;
+  font-family: var(--font-brand);
+  font-size: var(--text-xl);
   font-weight: 800;
   color: #fff;
   margin: 0 0 2px;
   letter-spacing: -0.3px;
+  line-height: 1.2;
 }
 
 .subtitle {
-  font-size: 13px;
-  color: rgba(255, 255, 255, 0.45);
+  font-size: var(--text-sm);
+  color: rgba(255, 255, 255, 0.5);
   margin: 0;
 }

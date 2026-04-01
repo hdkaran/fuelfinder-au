@@ -17,6 +17,17 @@ static class StationEndpoints
             return Results.Ok(stations);
         });
 
+        // GET /api/stations/search?q=&lat=&lng=
+        group.MapGet("/search", async (
+            string q, double? lat, double? lng,
+            StationQueryService svc, CancellationToken ct) =>
+        {
+            if (string.IsNullOrWhiteSpace(q) || q.Trim().Length < 2)
+                return Results.BadRequest("q must be at least 2 characters.");
+            var stations = await svc.SearchAsync(q, lat, lng, ct);
+            return Results.Ok(stations);
+        });
+
         // GET /api/stations/{id}
         group.MapGet("/{id:guid}", async (
             Guid id, StationQueryService svc, CancellationToken ct) =>

@@ -5,10 +5,18 @@
 # Required secrets:
 #   AZURE_CREDENTIALS          — JSON output of: az ad sp create-for-rbac --sdk-auth
 #   AZURE_RESOURCE_GROUP       — Name of the Azure resource group (e.g. "fuelfinder-rg")
-#   ACR_NAME                   — (Informational — not used in this workflow directly)
-#   DB_CONNECTION_STRING        — (Informational — populated after first deploy)
-#   AZURE_STATIC_WEB_APPS_API_TOKEN — (Informational — populated after first deploy)
-#   GOOGLE_MAPS_API_KEY        — (Informational — written to Key Vault manually post-deploy)
+#   SQL_ADMIN_PASSWORD         — SQL administrator password (must match the current DB password)
+#
+# Optional GitHub Actions variables (Settings → Variables → Actions):
+#   CUSTOM_DOMAIN              — Set to "fuelstock.com.au" ONLY after GoDaddy DNS records exist.
+#                                Leave unset (or empty) until docs/dns-setup.md Step 2 is complete.
+#   CUSTOM_DOMAIN_API          — Set to "api.fuelstock.com.au" ONLY after GoDaddy CNAME for 'api' exists.
+#
+# Informational (not used by this workflow):
+#   ACR_NAME                   — Container registry name
+#   DB_CONNECTION_STRING        — Populated automatically into Key Vault by Bicep
+#   AZURE_STATIC_WEB_APPS_API_TOKEN — SWA deployment token
+#   GOOGLE_MAPS_API_KEY        — Written to Key Vault manually post-deploy
 
 name: Infrastructure
 
@@ -42,5 +50,38 @@ jobs:
             --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
             --template-file infra/master.bicep \
             --parameters @infra/parameters.json \
+            --parameters sqlAdminPassword=${{ secrets.SQL_ADMIN_PASSWORD }} \
+            ${{ vars.CUSTOM_DOMAIN && format('--parameters customDomain={0}', vars.CUSTOM_DOMAIN) || '' }} \
+            ${{ vars.CUSTOM_DOMAIN_API && format('--parameters customDomainApi={0}', vars.CUSTOM_DOMAIN_API) || '' }} \
             --mode Incremental \
             --verbose
+
+      # ── Print deployed URLs ────────────────────────────────────────────────
+      - name: Print deployed resource URLs
+        run: |
+          OUTPUTS=$(az deployment group show \
+            --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
+            --name master \
+            --query properties.outputs \
+            --output json)
+
+          API_URL=$(echo $OUTPUTS | jq -r '.appServiceUrl.value')
+          SWA_URL=$(echo $OUTPUTS | jq -r '.staticWebAppUrl.value')
+          SWA_HOST=$(echo $OUTPUTS | jq -r '.staticWebAppHostname.value')
+          API_HOST=$(echo $OUTPUTS | jq -r '.appServiceHostname.value')
+          KV_NAME=$(echo $OUTPUTS | jq -r '.keyVaultName.value')
+
+          echo "## Deployed Resources" >> $GITHUB_STEP_SUMMARY
+          echo "| Resource | URL |" >> $GITHUB_STEP_SUMMARY
+          echo "|---|---|" >> $GITHUB_STEP_SUMMARY
+          echo "| API (App Service) | $API_URL |" >> $GITHUB_STEP_SUMMARY
+          echo "| Frontend (Static Web App) | $SWA_URL |" >> $GITHUB_STEP_SUMMARY
+          echo "| Key Vault | $KV_NAME |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## GoDaddy DNS Records (add these if not already done)" >> $GITHUB_STEP_SUMMARY
+          echo "| Type | Name | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|---|---|---|" >> $GITHUB_STEP_SUMMARY
+          echo "| ALIAS | @ | $SWA_HOST |" >> $GITHUB_STEP_SUMMARY
+          echo "| CNAME | www | $SWA_HOST |" >> $GITHUB_STEP_SUMMARY
+          echo "| CNAME | api | $API_HOST |" >> $GITHUB_STEP_SUMMARY
+          echo "| TXT | asuid | _(get from Azure Portal → SWA → Custom domains)_ |" >> $GITHUB_STEP_SUMMARY

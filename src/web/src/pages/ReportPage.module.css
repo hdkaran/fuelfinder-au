@@ -3,7 +3,8 @@
   background: var(--color-bg);
 }
 
-/* ── Main ── */
+/* ── Main ──────────────────────────────────────────────────────────────────── */
+
 .main {
   padding: 16px;
   display: flex;
@@ -18,76 +19,60 @@
 }
 
 .sectionTitle {
-  font-size: 13px;
+  font-size: 11px;
   font-weight: 700;
-  color: #888;
+  color: #aaa;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.07em;
   margin: 0 0 12px;
+  padding-left: 8px;
+  border-left: 3px solid var(--color-amber);
 }
 
-/* ── Status buttons ── */
+/* ── Status buttons ────────────────────────────────────────────────────────── */
+
 .statusGrid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 8px;
 }
 
+/*
+  Unselected: white background, colored border+text.
+  Selected: solid color fill, white text.
+  This ensures no option looks pre-selected.
+*/
 .statusBtn {
   padding: 14px 8px;
   border-radius: var(--radius-button);
-  border: 2px solid transparent;
-  font-size: 15px;
+  border: 2px solid #e5e0d8;
+  font-size: 14px;
   font-weight: 700;
   font-family: inherit;
   cursor: pointer;
-  transition: transform 0.1s, box-shadow 0.1s;
-  background: #f5f5f5;
-  color: #444;
+  background: #fff;
+  color: #888;
+  transition: transform 0.1s, border-color 0.15s, background 0.15s, color 0.15s;
 }
 
 .statusBtn:active {
   transform: scale(0.97);
 }
 
-.statusBtn.selected {
-  border-color: currentColor;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
-}
+/* Each option shows its color on the border when unselected */
+.statusAvailable { border-color: var(--color-available); color: var(--color-available-text); }
+.statusLow       { border-color: var(--color-low);       color: var(--color-low-text); }
+.statusOut       { border-color: var(--color-out);       color: var(--color-out-text); }
+.statusQueue     { border-color: #f59e0b;                color: #92400e; }
 
-.statusAvailable {
-  color: var(--color-available-text);
-  background: var(--color-available-bg);
-}
-.statusAvailable.selected {
-  border-color: var(--color-available);
-}
+/* Selected: solid fill */
+.statusAvailable.selected { background: var(--color-available); color: #fff; box-shadow: 0 2px 8px rgba(34, 197, 94, 0.3); }
+.statusLow.selected       { background: var(--color-low);       color: #fff; box-shadow: 0 2px 8px rgba(249, 115, 22, 0.3); }
+.statusOut.selected       { background: var(--color-out);       color: #fff; box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3); }
+.statusQueue.selected     { background: #f59e0b;                color: #fff; box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3); }
 
-.statusLow {
-  color: var(--color-low-text);
-  background: var(--color-low-bg);
-}
-.statusLow.selected {
-  border-color: var(--color-low);
-}
+/* ── Fuel rows ─────────────────────────────────────────────────────────────── */
 
-.statusOut {
-  color: var(--color-out-text);
-  background: var(--color-out-bg);
-}
-.statusOut.selected {
-  border-color: var(--color-out);
-}
-
-.statusQueue {
-  color: #92400e;
-  background: #fffbeb;
-}
-.statusQueue.selected {
-  border-color: var(--color-amber);
-}
-
-/* ── Fuel rows ── */
 .fuelList {
   display: flex;
   flex-direction: column;
@@ -100,14 +85,21 @@
   align-items: center;
   padding: 12px 14px;
   border-radius: 12px;
-  border: 2px solid transparent;
+  border: 2px solid #e8e4dc;
+  background: #fff;
   cursor: pointer;
   font-family: inherit;
-  transition: transform 0.1s;
+  transition: transform 0.1s, border-color 0.15s, background 0.15s;
 }
 
 .fuelRow:active {
   transform: scale(0.97);
+}
+
+/* Unset — neutral gray */
+.fuelUnset {
+  border-color: #e8e4dc;
+  background: #faf9f7;
 }
 
 .fuelYes {
@@ -127,19 +119,24 @@
 }
 
 .fuelToggle {
+  display: flex;
+  align-items: center;
+  gap: 4px;
   font-size: 13px;
   font-weight: 600;
 }
 
-.fuelYes .fuelToggle {
-  color: var(--color-available-text);
+.fuelYes .fuelToggle { color: var(--color-available-text); }
+.fuelNo  .fuelToggle { color: var(--color-out-text); }
+
+.fuelTap {
+  color: #bbb;
+  font-weight: 500;
+  font-size: 12px;
 }
 
-.fuelNo .fuelToggle {
-  color: var(--color-out-text);
-}
+/* ── Error ─────────────────────────────────────────────────────────────────── */
 
-/* ── Error ── */
 .error {
   font-size: 14px;
   color: var(--color-out-text);
@@ -147,7 +144,8 @@
   margin: 0;
 }
 
-/* ── Submit button ── */
+/* ── Submit button ─────────────────────────────────────────────────────────── */
+
 .submitBtn {
   width: 100%;
   padding: 16px;
@@ -175,7 +173,8 @@
   transform: none;
 }
 
-/* ── Success screen ── */
+/* ── Success screen ────────────────────────────────────────────────────────── */
+
 .success {
   display: flex;
   flex-direction: column;
@@ -184,20 +183,26 @@
   min-height: 100dvh;
   padding: 32px 24px;
   text-align: center;
+  gap: 0;
+}
+
+@keyframes popIn {
+  0%   { transform: scale(0.5); opacity: 0; }
+  70%  { transform: scale(1.12); }
+  100% { transform: scale(1);   opacity: 1; }
 }
 
 .successIcon {
-  width: 72px;
-  height: 72px;
+  width: 80px;
+  height: 80px;
   border-radius: 50%;
   background: var(--color-available-bg);
   color: var(--color-available);
-  font-size: 36px;
-  font-weight: 800;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 20px;
+  margin-bottom: 22px;
+  animation: popIn 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }
 
 .successTitle {
@@ -210,7 +215,36 @@
 .successSub {
   font-size: 15px;
   color: #888;
-  margin: 0 0 32px;
+  margin: 0 0 24px;
+}
+
+/* Report summary card */
+.successSummary {
+  background: #f8f5f0;
+  border: 1.5px solid #e8e3d8;
+  border-radius: 14px;
+  padding: 14px 20px;
+  margin-bottom: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  text-align: left;
+}
+
+.successSummaryLabel {
+  font-size: 11px;
+  font-weight: 700;
+  color: #aaa;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+}
+
+.successSummaryValue {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-dark);
+  line-height: 1.3;
 }
 
 .successBtn {
@@ -231,12 +265,24 @@
   transform: scale(0.97);
 }
 
+/* Secondary outlined "Go to home" button */
 .successLink {
-  font-size: 14px;
-  color: #888;
+  display: block;
+  width: 100%;
+  padding: 14px 16px;
+  border: 2px solid #e8e3d8;
+  border-radius: var(--radius-button);
+  font-size: 15px;
+  font-weight: 700;
+  font-family: inherit;
+  color: #555;
   text-decoration: none;
+  text-align: center;
+  background: #fff;
+  transition: transform 0.1s, background 0.12s;
 }
 
 .successLink:active {
-  opacity: 0.7;
+  transform: scale(0.97);
+  background: #f5f3ef;
 }

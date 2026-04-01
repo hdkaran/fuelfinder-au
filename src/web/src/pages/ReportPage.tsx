@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
+import { CheckCircle, Check, X as XIcon } from 'lucide-react';
 import { useParams, Link } from 'react-router-dom';
 import { skipToken } from '@reduxjs/toolkit/query/react';
 import { useGetStationQuery, useSubmitReportMutation } from '../api/fuelFinderApi';
+import { trackEvent } from '../lib/appInsights';
 import PageHeader from '../components/PageHeader';
 import type { ReportStatus, FuelType } from '../types';
 import styles from './ReportPage.module.css';
@@ -15,22 +17,32 @@ const STATUS_OPTIONS: { value: ReportStatus; label: string; statusClass: string 
   { value: 'queue',     label: 'Long queue',      statusClass: styles.statusQueue },
 ];
 
-const ALL_AVAILABLE: Record<FuelType, boolean> = { Diesel: true, ULP: true, E10: true, Premium: true };
-const ALL_UNAVAILABLE: Record<FuelType, boolean> = { Diesel: false, ULP: false, E10: false, Premium: false };
+const STATUS_LABEL: Record<ReportStatus, string> = {
+  available: 'Fuel available',
+  low:       'Running low',
+  out:       'Fuel out',
+  queue:     'Long queue',
+};
+
+// Fuel rows start unset (null = not chosen yet)
+type FuelState = Record<FuelType, boolean | null>;
+const ALL_UNSET: FuelState    = { Diesel: null, ULP: null, E10: null, Premium: null };
+const ALL_AVAILABLE: FuelState = { Diesel: true, ULP: true, E10: true, Premium: true };
+const ALL_UNAVAILABLE: FuelState = { Diesel: false, ULP: false, E10: false, Premium: false };
 
 export default function ReportPage() {
   const { stationId } = useParams<{ stationId: string }>();
   const { data: station } = useGetStationQuery(stationId ?? skipToken);
 
   const [status, setStatus] = useState<ReportStatus | null>(null);
-  const [fuelAvailable, setFuelAvailable] = useState<Record<FuelType, boolean>>(ALL_AVAILABLE);
-  const [coords, setCoords] = useState({ lat: 0, lng: 0 });
+  const [fuelAvailable, setFuelAvailable] = useState<FuelState>(ALL_UNSET);
+  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [submitReport, { isLoading, isSuccess, isError }] = useSubmitReportMutation();
 
   useEffect(() => {
     navigator.geolocation?.getCurrentPosition(
       (pos) => setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-      () => {},
+      () => { /* location denied — falls back to station coords on submit */ },
       { timeout: 10_000 },
     );
   }, []);
@@ -50,10 +62,14 @@ export default function ReportPage() {
       await submitReport({
         stationId,
         status,
-        fuelTypes: FUEL_TYPES.map((ft) => ({ fuelType: ft, available: fuelAvailable[ft] })),
-        latitude: coords.lat,
-        longitude: coords.lng,
+        fuelTypes: FUEL_TYPES.map((ft) => ({
+          fuelType: ft,
+          available: fuelAvailable[ft] ?? true,
+        })),
+        latitude:  coords?.lat ?? station?.latitude ?? 0,
+        longitude: coords?.lng ?? station?.longitude ?? 0,
       }).unwrap();
+      trackEvent('report_submitted', { status, stationId });
     } catch {
       // isError from mutation captures this
     }
@@ -63,9 +79,22 @@ export default function ReportPage() {
     return (
       <div className={styles.page}>
         <div className={styles.success}>
-          <div className={styles.successIcon}>✓</div>
+          <div className={styles.successIcon}>
+            <CheckCircle size={40} strokeWidth={1.8} />
+          </div>
           <h2 className={styles.successTitle}>Report submitted</h2>
           <p className={styles.successSub}>Thanks for helping other drivers!</p>
+
+          {status && (
+            <div className={styles.successSummary}>
+              <span className={styles.successSummaryLabel}>You reported</span>
+              <span className={styles.successSummaryValue}>
+                {STATUS_LABEL[status]}
+                {station && ` at ${station.name}`}
+              </span>
+            </div>
+          )}
+
           <Link to={`/stations/${stationId}`} className={styles.successBtn}>
             Back to station
           </Link>
@@ -103,18 +132,28 @@ export default function ReportPage() {
           <section className={styles.section}>
             <h2 className={styles.sectionTitle}>Fuel availability</h2>
             <div className={styles.fuelList}>
-              {FUEL_TYPES.map((ft) => (
-                <button
-                  key={ft}
-                  className={`${styles.fuelRow} ${fuelAvailable[ft] ? styles.fuelYes : styles.fuelNo}`}
-                  onClick={() => toggleFuel(ft)}
-                >
-                  <span className={styles.fuelName}>{ft}</span>
-                  <span className={styles.fuelToggle}>
-                    {fuelAvailable[ft] ? '✓ Available' : '✗ Out'}
-                  </span>
-                </button>
-              ))}
+              {FUEL_TYPES.map((ft) => {
+                const val = fuelAvailable[ft];
+                const cls = val === true
+                  ? styles.fuelYes
+                  : val === false
+                    ? styles.fuelNo
+                    : styles.fuelUnset;
+                return (
+                  <button
+                    key={ft}
+                    className={`${styles.fuelRow} ${cls}`}
+                    onClick={() => toggleFuel(ft)}
+                  >
+                    <span className={styles.fuelName}>{ft}</span>
+                    <span className={styles.fuelToggle}>
+                      {val === true  && <><Check  size={13} /> Available</>}
+                      {val === false && <><XIcon  size={13} /> Out</>}
+                      {val === null  && <span className={styles.fuelTap}>Tap to set</span>}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
           </section>
         )}

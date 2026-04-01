@@ -7,7 +7,7 @@ using Microsoft.Extensions.Caching.Distributed;
 
 namespace FuelFinder.Api.Services;
 
-sealed class ReportService(AppDbContext db, IDistributedCache cache, StationQueryService stationCache)
+sealed class ReportService(AppDbContext db, IDistributedCache cache, StationQueryService stationCache, IServiceScopeFactory scopeFactory)
 {
     private static readonly TimeSpan RecentTtl = TimeSpan.FromSeconds(30);
     private const int RecentLimit = 10;
@@ -17,8 +17,8 @@ sealed class ReportService(AppDbContext db, IDistributedCache cache, StationQuer
     /// </summary>
     public async Task<Guid?> SubmitAsync(ReportPayload payload, CancellationToken ct)
     {
-        var stationExists = await db.Stations.AnyAsync(s => s.Id == payload.StationId, ct);
-        if (!stationExists) return null;
+        var station = await db.Stations.FirstOrDefaultAsync(s => s.Id == payload.StationId, ct);
+        if (station is null) return null;
 
         var report = new Report
         {
@@ -40,6 +40,17 @@ sealed class ReportService(AppDbContext db, IDistributedCache cache, StationQuer
         await stationCache.InvalidateAsync(payload.StationId, ct);
         await cache.RemoveSafeAsync($"reports:recent:{payload.StationId}", ct);
         await cache.RemoveSafeAsync("stats:summary", ct);
+
+        // Notify nearby subscribers — own scope + CancellationToken.None so the
+        // request cancellation (after 201 is sent) doesn't kill the notification task
+        var stationSnapshot = station;
+        var statusSnapshot  = payload.Status;
+        _ = Task.Run(async () =>
+        {
+            await using var scope = scopeFactory.CreateAsyncScope();
+            var pushSvc = scope.ServiceProvider.GetRequiredService<PushService>();
+            await pushSvc.NotifyNearbyAsync(stationSnapshot, statusSnapshot, CancellationToken.None);
+        });
 
         return report.Id;
     }

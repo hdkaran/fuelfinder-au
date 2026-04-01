@@ -1,32 +1,63 @@
 :root {
-  /* Layout */
+  /* ── Layout ─────────────────────────────────────────────────────────────── */
   --report-bar-height: 64px;
 
-  /* Brand */
-  --color-amber: #f5a623;
-  --color-dark: #1a1a1a;
-  --color-bg: #f5f4f0;
-  --color-surface: #ffffff;
+  /* ── Brand colors ────────────────────────────────────────────────────────── */
+  --color-amber:       #f5a623;
+  --color-amber-dark:  #d97706;   /* amber on light bg — meets WCAG AA at 14px bold */
+  --color-amber-light: #fef3c7;   /* amber tint for active chip backgrounds */
+  --color-dark:        #1a1a1a;
+  --color-bg:          #f5f4f0;
+  --color-surface:     #ffffff;
+  --color-slate:       #f1f5f9;   /* segmented control track background */
+  --color-text-secondary: #6b7280;
+  --color-border:      #e8e4dc;
 
-  /* Status — available */
-  --color-available: #22c55e;
-  --color-available-bg: #f0fdf4;
+  /* ── Status — available ──────────────────────────────────────────────────── */
+  --color-available:      #22c55e;
+  --color-available-bg:   #f0fdf4;
   --color-available-text: #15803d;
 
-  /* Status — low */
-  --color-low: #f97316;
-  --color-low-bg: #fff7ed;
+  /* ── Status — low ───────────────────────────────────────────────────────── */
+  --color-low:      #f97316;
+  --color-low-bg:   #fff7ed;
   --color-low-text: #c2410c;
 
-  /* Status — out */
-  --color-out: #ef4444;
-  --color-out-bg: #fef2f2;
+  /* ── Status — out ───────────────────────────────────────────────────────── */
+  --color-out:      #ef4444;
+  --color-out-bg:   #fef2f2;
   --color-out-text: #b91c1c;
 
-  /* Border radii */
+  /* ── Status — unknown ───────────────────────────────────────────────────── */
+  --color-unknown:      #94a3b8;
+  --color-unknown-bg:   #f8fafc;
+  --color-unknown-text: #64748b;
+
+  /* ── Border radii ────────────────────────────────────────────────────────── */
+  --radius-sm:     8px;
+  --radius-md:     12px;
   --radius-button: 16px;
-  --radius-card: 18px;
-  --radius-pill: 100px;
+  --radius-card:   18px;
+  --radius-pill:   100px;
+
+  /* ── Spacing ─────────────────────────────────────────────────────────────── */
+  --space-xs:  4px;
+  --space-sm:  8px;
+  --space-md:  16px;
+  --space-lg:  24px;
+  --space-xl:  32px;
+
+  /* ── Typography ──────────────────────────────────────────────────────────── */
+  --font-body:    'Inter', system-ui, sans-serif;
+  --font-brand:   'Outfit', 'Inter', sans-serif;
+
+  --text-xs:   12px;
+  --text-sm:   13px;
+  --text-base: 14px;
+  --text-md:   15px;
+  --text-lg:   18px;
+  --text-xl:   22px;
+  --text-2xl:  24px;
 }
 
 *,
@@ -37,11 +68,13 @@
 
 body {
   margin: 0;
-  font-family: 'Outfit', sans-serif;
+  font-family: var(--font-body);
+  font-size: var(--text-base);
   background-color: var(--color-bg);
   color: var(--color-dark);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  line-height: 1.5;
 }
 
 /* Mobile-first: max 420px centred on desktop */
@@ -53,7 +86,13 @@ body {
   position: relative;
 }
 
-/* Active state for all interactive elements */
+/* Focus ring — visible keyboard navigation */
+:focus-visible {
+  outline: 2px solid var(--color-amber);
+  outline-offset: 2px;
+}
+
+/* Active state for interactive elements */
 button,
 a {
   cursor: pointer;
@@ -61,6 +100,5 @@ a {
 
 button:active,
 a:active {
-  transform: scale(0.97);
   transition: transform 0.1s;
 }

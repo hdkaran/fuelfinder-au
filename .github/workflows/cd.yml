@@ -9,6 +9,7 @@
 #   DB_CONNECTION_STRING        — SQL connection string for EF Core migrations
 #   AZURE_STATIC_WEB_APPS_API_TOKEN — Deployment token from Static Web Apps resource
 #   GOOGLE_MAPS_API_KEY        — Google Maps JS API key (written to Key Vault post-deploy)
+#   FUELCHECK_API_KEY          — NSW FuelCheck API key for seeding stations
 
 name: CD
 
@@ -63,11 +64,11 @@ jobs:
           docker push $IMAGE_LATEST
 
       # ── .NET: EF Core database migrations ─────────────────────────────────
-      - name: Setup .NET 8
+      - name: Setup .NET 10
         if: hashFiles('src/FuelFinder.sln') != ''
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: "8.0.x"
+          dotnet-version: "10.0.x"
 
       - name: Install dotnet-ef tool
         if: hashFiles('src/FuelFinder.sln') != ''
@@ -94,9 +95,9 @@ jobs:
           images: ${{ secrets.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }}
 
       # ── Configure CORS on API ─────────────────────────────────────────────
-      # Resolve the SWA hostname and set it as an allowed origin on the API.
-      # This runs after deploy so the App Service picks up the new setting
-      # on next restart (or within seconds via config polling).
+      # Resolve the SWA and CDN hostnames and add both as allowed origins on
+      # the API. Users may arrive via either hostname, so both need to be in
+      # the CORS allowlist for the browser preflight check to pass.
       - name: Configure CORS on API
         run: |
           SWA_HOST=$(az staticwebapp list \
@@ -104,18 +105,30 @@ jobs:
             --query "[?starts_with(name, 'fuelfinder')].defaultHostname | [0]" \
             -o tsv)
           echo "SWA_HOST=$SWA_HOST" >> $GITHUB_ENV
+
           az webapp config appsettings set \
             --name ${{ env.APP_SERVICE_NAME }} \
             --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
-            --settings "AllowedOrigins__0=https://$SWA_HOST"
+            --settings \
+              "AllowedOrigins__0=https://$SWA_HOST" \
+              "FuelCheck__ApiKey=${{ secrets.FUELCHECK_API_KEY }}"
 
       # ── Deploy frontend to Static Web Apps ────────────────────────────────
+      - name: Resolve App Insights connection string
+        run: |
+          CS=$(az monitor app-insights component show \
+            --app fuelfinder-insights \
+            --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
+            --query connectionString -o tsv 2>/dev/null || true)
+          echo "APPINSIGHTS_CS=$CS" >> $GITHUB_ENV
+
       - name: Deploy frontend to Static Web Apps
         if: hashFiles('src/web/package.json') != ''
         uses: Azure/static-web-apps-deploy@v1
         env:
           VITE_API_BASE_URL: https://${{ env.APP_SERVICE_NAME }}.azurewebsites.net
           VITE_GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
+          VITE_APPINSIGHTS_CONNECTION_STRING: ${{ env.APPINSIGHTS_CS }}
         with:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
           repo_token: ${{ secrets.GITHUB_TOKEN }}
@@ -123,14 +136,62 @@ jobs:
           app_location: src/web
           output_location: dist
 
-      # ── Smoke test ─────────────────────────────────────────────────────────
-      # Skipped until a Dockerfile exists and an image has actually been deployed.
-      - name: Smoke test — wait for App Service to start
-        if: hashFiles('src/FuelFinder.Api/Dockerfile') != ''
-        run: sleep 30
-
-      - name: Smoke test — /health endpoint
+      # ── Smoke tests ────────────────────────────────────────────────────────
+      # Retry /health for up to 3 minutes (18 × 10 s) to give the container
+      # time to pull and start. Then check the API and stats endpoints.
+      - name: Smoke test — wait for App Service to become healthy
         if: hashFiles('src/FuelFinder.Api/Dockerfile') != ''
         run: |
-          curl --fail --silent --show-error \
-            https://${{ env.APP_SERVICE_NAME }}.azurewebsites.net/health
+          API_BASE="https://${{ env.APP_SERVICE_NAME }}.azurewebsites.net"
+          echo "Waiting for $API_BASE/health ..."
+          for i in $(seq 1 18); do
+            STATUS=$(curl --silent --output /dev/null --write-out "%{http_code}" "$API_BASE/health" || true)
+            echo "  attempt $i: HTTP $STATUS"
+            if [ "$STATUS" = "200" ]; then
+              echo "Health check passed."
+              break
+            fi
+            if [ $i -eq 18 ]; then
+              echo "::error::App Service did not become healthy within 3 minutes."
+              exit 1
+            fi
+            sleep 10
+          done
+
+      - name: Smoke test — /api/stats/summary
+        if: hashFiles('src/FuelFinder.Api/Dockerfile') != ''
+        run: |
+          API_BASE="https://${{ env.APP_SERVICE_NAME }}.azurewebsites.net"
+          for i in 1 2 3 4 5 6; do
+            STATUS=$(curl --silent --output /dev/null --write-out "%{http_code}" "$API_BASE/api/stats/summary" || true)
+            echo "  attempt $i: HTTP $STATUS"
+            if [ "$STATUS" = "200" ]; then echo "OK"; break; fi
+            if [ $i -eq 6 ]; then echo "::error::Smoke test failed after 6 attempts."; exit 1; fi
+            sleep 10
+          done
+
+      - name: Smoke test — /api/stations/nearby (returns 200 with array)
+        if: hashFiles('src/FuelFinder.Api/Dockerfile') != ''
+        run: |
+          API_BASE="https://${{ env.APP_SERVICE_NAME }}.azurewebsites.net"
+          for i in 1 2 3 4 5 6; do
+            STATUS=$(curl --silent --output /dev/null --write-out "%{http_code}" \
+              "$API_BASE/api/stations/nearby?lat=-33.8688&lng=151.2093&radius=10000" || true)
+            echo "  attempt $i: HTTP $STATUS"
+            if [ "$STATUS" = "200" ]; then echo "OK"; break; fi
+            if [ $i -eq 6 ]; then echo "::error::Smoke test failed after 6 attempts."; exit 1; fi
+            sleep 10
+          done
+
+      # ── Deployment summary ────────────────────────────────────────────────
+      - name: Print deployment summary
+        if: hashFiles('src/FuelFinder.Api/Dockerfile') != ''
+        run: |
+          echo "## Deployment complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Endpoint | URL |" >> $GITHUB_STEP_SUMMARY
+          echo "|---|---|" >> $GITHUB_STEP_SUMMARY
+          echo "| API | https://${{ env.APP_SERVICE_NAME }}.azurewebsites.net |" >> $GITHUB_STEP_SUMMARY
+          echo "| Frontend (SWA) | https://${{ env.SWA_HOST }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Commit: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY

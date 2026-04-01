@@ -18,6 +18,12 @@ param appInsightsConnectionString string
 @description('Key Vault name — used to construct Key Vault reference URIs in app settings')
 param keyVaultName string
 
+@description('Optional custom domain for the API (e.g. "api.fuelstock.com.au"). Leave empty to use the Azure default hostname. DNS CNAME must point to the App Service default hostname before setting this.')
+param customDomainApi string = ''
+
+@description('Allowed CORS origins for the API (e.g. ["https://fuelstock.com.au","https://www.fuelstock.com.au"])')
+param allowedOrigins array = []
+
 // Azure Container Registry — Basic SKU
 resource acr 'Microsoft.ContainerRegistry/registries@2023-01-01-preview' = {
   // ACR names must be alphanumeric (no hyphens), 5–50 chars.
@@ -57,6 +63,13 @@ resource appServicePlan 'Microsoft.Web/serverfarms@2022-09-01' = {
 // for App Service (names must be globally unique across all of Azure).
 var uniqueSuffix = take(uniqueString(resourceGroup().id), 6)
 
+// CORS app settings — built as a variable so a for-expression can be used.
+// ASP.NET Core reads AllowedOrigins__0, AllowedOrigins__1, … as a string array.
+var corsAppSettings = [for (origin, i) in allowedOrigins: {
+  name: 'AllowedOrigins__${i}'
+  value: origin
+}]
+
 // App Service — Docker container hosting the .NET API
 resource appService 'Microsoft.Web/sites@2022-09-01' = {
   name: '${baseName}-api-${uniqueSuffix}'
@@ -70,14 +83,17 @@ resource appService 'Microsoft.Web/sites@2022-09-01' = {
     serverFarmId: appServicePlan.id
     httpsOnly: true
     siteConfig: {
-      linuxFxVersion: 'DOCKER|${acr.properties.loginServer}/${baseName}-api-${uniqueSuffix}:latest'
+      // Image name matches what cd.yml builds: IMAGE_NAME=fuelfinder-api (no unique suffix).
+      // The unique suffix is only on the App Service NAME for global DNS uniqueness — not on the image.
+      linuxFxVersion: 'DOCKER|${acr.properties.loginServer}/${baseName}-api:latest'
       acrUseManagedIdentityCreds: true  // Pull from ACR using managed identity
       alwaysOn: true
       ftpsState: 'Disabled'
       minTlsVersion: '1.2'
       http20Enabled: true
-      // App settings — Key Vault references use the @Microsoft.KeyVault() syntax
-      appSettings: [
+      // App settings — Key Vault references use the @Microsoft.KeyVault() syntax.
+      // concat() merges the static settings with the dynamic corsAppSettings variable.
+      appSettings: concat([
         {
           name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
           value: appInsightsConnectionString
@@ -109,8 +125,40 @@ resource appService 'Microsoft.Web/sites@2022-09-01' = {
           name: 'DOCKER_REGISTRY_SERVER_URL'
           value: 'https://${acr.properties.loginServer}'
         }
-      ]
+      ], corsAppSettings)
     }
+  }
+}
+
+// ── Custom domain + managed SSL cert ─────────────────────────────────────────
+// Pre-requisite: DNS CNAME api.fuelstock.com.au → App Service default hostname
+// must exist before this resource is deployed, or Azure cert validation will fail.
+//
+// Azure App Service Managed Certificate is free and auto-renews.
+// The cert uses the canonicalName (the CNAME that points to azurewebsites.net)
+// to prove domain ownership — no HTTP challenge file or manual DNS TXT needed.
+
+resource apiManagedCert 'Microsoft.Web/certificates@2022-09-01' = if (!empty(customDomainApi)) {
+  name: '${baseName}-api-cert'
+  location: location
+  tags: tags
+  properties: {
+    serverFarmId: appServicePlan.id
+    canonicalName: customDomainApi   // Must match the CNAME pointing to azurewebsites.net
+  }
+}
+
+// Hostname binding with SNI SSL enabled using the managed cert thumbprint.
+// Creating the binding and cert in a single pass works because Bicep resolves
+// the cert thumbprint output before writing the binding.
+resource apiCustomHostname 'Microsoft.Web/sites/hostNameBindings@2022-09-01' = if (!empty(customDomainApi)) {
+  parent: appService
+  name: customDomainApi
+  properties: {
+    siteName: appService.name
+    hostNameType: 'Verified'
+    sslState: 'SniEnabled'
+    thumbprint: apiManagedCert.?properties.thumbprint ?? ''
   }
 }
 

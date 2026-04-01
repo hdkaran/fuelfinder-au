@@ -1,0 +1,25 @@
+.bell {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  transition: transform 0.1s, opacity 0.1s;
+  opacity: 0.6;
+}
+
+.bell:hover {
+  opacity: 1;
+}
+
+.bell:active {
+  transform: scale(0.9);
+}
+
+.bell.active {
+  opacity: 1;
+}

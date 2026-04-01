@@ -16,7 +16,9 @@ sealed class StatsService(AppDbContext db, IDistributedCache cache)
         var cached = await cache.GetJsonAsync<StatsDto>(CacheKey, ct);
         if (cached is not null) return cached;
 
-        var todayUtc = DateTimeOffset.UtcNow.Date; // midnight UTC
+        // Use DateTimeOffset (not DateTime) — EF Core 10 is strict about comparing
+        // DateTimeOffset columns against DateTime values in LINQ queries.
+        var todayUtc = new DateTimeOffset(DateTimeOffset.UtcNow.Date, TimeSpan.Zero);
 
         var totalReportsToday = await db.Reports
             .CountAsync(r => r.CreatedAt >= todayUtc, ct);
@@ -34,5 +36,54 @@ sealed class StatsService(AppDbContext db, IDistributedCache cache)
 
         await cache.SetJsonAsync(CacheKey, dto, StatsTtl, ct);
         return dto;
+    }
+
+    public async Task<IReadOnlyList<TodayReportDto>> GetTodayReportsAsync(CancellationToken ct)
+    {
+        var todayUtc = new DateTimeOffset(DateTimeOffset.UtcNow.Date, TimeSpan.Zero);
+        var now = DateTimeOffset.UtcNow;
+
+        var reports = await db.Reports
+            .Where(r => r.CreatedAt >= todayUtc)
+            .Include(r => r.Station)
+            .OrderByDescending(r => r.CreatedAt)
+            .ToListAsync(ct);
+
+        return reports.Select(r => new TodayReportDto(
+            r.Id,
+            r.StationId,
+            r.Station.Name,
+            r.Station.Address,
+            r.Status,
+            (int)(now - r.CreatedAt).TotalMinutes
+        )).ToList();
+    }
+
+    public async Task<IReadOnlyList<AffectedStationDto>> GetAffectedStationsAsync(CancellationToken ct)
+    {
+        var todayUtc = new DateTimeOffset(DateTimeOffset.UtcNow.Date, TimeSpan.Zero);
+
+        var reports = await db.Reports
+            .Where(r => r.CreatedAt >= todayUtc)
+            .Include(r => r.Station)
+            .OrderByDescending(r => r.CreatedAt)
+            .ToListAsync(ct);
+
+        return reports
+            .GroupBy(r => r.StationId)
+            .Select(g =>
+            {
+                var station = g.First().Station;
+                return new AffectedStationDto(
+                    station.Id,
+                    station.Name,
+                    station.Address,
+                    station.Suburb,
+                    station.State,
+                    g.First().Status,
+                    g.Count()
+                );
+            })
+            .ToList();
     }
 }
