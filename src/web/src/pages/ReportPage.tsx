@@ -3,6 +3,7 @@ import { CheckCircle, Check, X as XIcon } from 'lucide-react';
 import { useParams, Link } from 'react-router-dom';
 import { skipToken } from '@reduxjs/toolkit/query/react';
 import { useGetStationQuery, useSubmitReportMutation } from '../api/fuelFinderApi';
+import { trackEvent } from '../lib/appInsights';
 import PageHeader from '../components/PageHeader';
 import type { ReportStatus, FuelType } from '../types';
 import styles from './ReportPage.module.css';
@@ -68,6 +69,7 @@ export default function ReportPage() {
         latitude:  coords?.lat ?? station?.latitude ?? 0,
         longitude: coords?.lng ?? station?.longitude ?? 0,
       }).unwrap();
+      trackEvent('report_submitted', { status, stationId });
     } catch {
       // isError from mutation captures this
     }

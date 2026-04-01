@@ -114,12 +114,21 @@ jobs:
               "FuelCheck__ApiKey=${{ secrets.FUELCHECK_API_KEY }}"
 
       # ── Deploy frontend to Static Web Apps ────────────────────────────────
+      - name: Resolve App Insights connection string
+        run: |
+          CS=$(az monitor app-insights component show \
+            --app fuelfinder-insights \
+            --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
+            --query connectionString -o tsv 2>/dev/null || true)
+          echo "APPINSIGHTS_CS=$CS" >> $GITHUB_ENV
+
       - name: Deploy frontend to Static Web Apps
         if: hashFiles('src/web/package.json') != ''
         uses: Azure/static-web-apps-deploy@v1
         env:
           VITE_API_BASE_URL: https://${{ env.APP_SERVICE_NAME }}.azurewebsites.net
           VITE_GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
+          VITE_APPINSIGHTS_CONNECTION_STRING: ${{ env.APPINSIGHTS_CS }}
         with:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
           repo_token: ${{ secrets.GITHUB_TOKEN }}
@@ -152,14 +161,27 @@ jobs:
       - name: Smoke test — /api/stats/summary
         if: hashFiles('src/FuelFinder.Api/Dockerfile') != ''
         run: |
-          curl --fail --silent --show-error \
-            "https://${{ env.APP_SERVICE_NAME }}.azurewebsites.net/api/stats/summary"
+          API_BASE="https://${{ env.APP_SERVICE_NAME }}.azurewebsites.net"
+          for i in 1 2 3 4 5 6; do
+            STATUS=$(curl --silent --output /dev/null --write-out "%{http_code}" "$API_BASE/api/stats/summary" || true)
+            echo "  attempt $i: HTTP $STATUS"
+            if [ "$STATUS" = "200" ]; then echo "OK"; break; fi
+            if [ $i -eq 6 ]; then echo "::error::Smoke test failed after 6 attempts."; exit 1; fi
+            sleep 10
+          done
 
       - name: Smoke test — /api/stations/nearby (returns 200 with array)
         if: hashFiles('src/FuelFinder.Api/Dockerfile') != ''
         run: |
-          curl --fail --silent --show-error \
-            "https://${{ env.APP_SERVICE_NAME }}.azurewebsites.net/api/stations/nearby?lat=-33.8688&lng=151.2093&radius=10000"
+          API_BASE="https://${{ env.APP_SERVICE_NAME }}.azurewebsites.net"
+          for i in 1 2 3 4 5 6; do
+            STATUS=$(curl --silent --output /dev/null --write-out "%{http_code}" \
+              "$API_BASE/api/stations/nearby?lat=-33.8688&lng=151.2093&radius=10000" || true)
+            echo "  attempt $i: HTTP $STATUS"
+            if [ "$STATUS" = "200" ]; then echo "OK"; break; fi
+            if [ $i -eq 6 ]; then echo "::error::Smoke test failed after 6 attempts."; exit 1; fi
+            sleep 10
+          done
 
       # ── Deployment summary ────────────────────────────────────────────────
       - name: Print deployment summary
