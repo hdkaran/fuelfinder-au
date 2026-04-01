@@ -237,14 +237,22 @@
   text-align: center;
 }
 
-.feedbackLink {
+.feedbackBtn {
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: inherit;
   font-size: var(--text-sm);
   color: var(--color-text-secondary);
-  text-decoration: none;
   border-bottom: 1px dashed var(--color-border);
-  transition: color 0.15s;
+  cursor: pointer;
+  transition: color 0.15s, transform 0.1s;
 }
 
-.feedbackLink:hover {
+.feedbackBtn:hover {
   color: var(--color-dark);
+}
+
+.feedbackBtn:active {
+  transform: scale(0.97);
 }

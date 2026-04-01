@@ -15,6 +15,7 @@ import { type StateFilter } from '../components/StatePicker';
 import FilterBar from '../components/FilterBar';
 import InstallBanner from '../components/InstallBanner';
 import StatsModal, { type StatsModalMode } from '../components/StatsModal';
+import FeedbackModal from '../components/FeedbackModal/FeedbackModal';
 import { pluralise } from '../utils/format';
 import type { StationDto } from '../types';
 import styles from './HomePage.module.css';
@@ -77,6 +78,7 @@ export default function HomePage() {
   const [sort, setSort] = useState<SortValue>('distance');
   const [stateFilter, setStateFilter] = useState<StateFilter>('All');
   const [statsModal, setStatsModal] = useState<StatsModalMode | null>(null);
+  const [showFeedback, setShowFeedback] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   function handleRadiusChange(newRadius: RadiusValue) {
@@ -279,17 +281,17 @@ export default function HomePage() {
       <ReportBar onClick={() => navigate('/report')} />
 
       <div className={styles.feedback}>
-        <a
-          href="https://github.com/hdkaran/fuelfinder-au/issues/new"
-          target="_blank"
-          rel="noopener noreferrer"
-          className={styles.feedbackLink}
+        <button
+          type="button"
+          className={styles.feedbackBtn}
+          onClick={() => setShowFeedback(true)}
         >
           Report a bug or suggest a feature
-        </a>
+        </button>
       </div>
 
       <StatsModal mode={statsModal} onClose={() => setStatsModal(null)} />
+      <FeedbackModal open={showFeedback} onClose={() => setShowFeedback(false)} />
     </div>
   );
 }
