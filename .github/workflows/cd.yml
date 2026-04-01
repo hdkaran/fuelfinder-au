@@ -152,14 +152,27 @@ jobs:
       - name: Smoke test — /api/stats/summary
         if: hashFiles('src/FuelFinder.Api/Dockerfile') != ''
         run: |
-          curl --fail --silent --show-error \
-            "https://${{ env.APP_SERVICE_NAME }}.azurewebsites.net/api/stats/summary"
+          API_BASE="https://${{ env.APP_SERVICE_NAME }}.azurewebsites.net"
+          for i in 1 2 3 4 5 6; do
+            STATUS=$(curl --silent --output /dev/null --write-out "%{http_code}" "$API_BASE/api/stats/summary" || true)
+            echo "  attempt $i: HTTP $STATUS"
+            if [ "$STATUS" = "200" ]; then echo "OK"; break; fi
+            if [ $i -eq 6 ]; then echo "::error::Smoke test failed after 6 attempts."; exit 1; fi
+            sleep 10
+          done
 
       - name: Smoke test — /api/stations/nearby (returns 200 with array)
         if: hashFiles('src/FuelFinder.Api/Dockerfile') != ''
         run: |
-          curl --fail --silent --show-error \
-            "https://${{ env.APP_SERVICE_NAME }}.azurewebsites.net/api/stations/nearby?lat=-33.8688&lng=151.2093&radius=10000"
+          API_BASE="https://${{ env.APP_SERVICE_NAME }}.azurewebsites.net"
+          for i in 1 2 3 4 5 6; do
+            STATUS=$(curl --silent --output /dev/null --write-out "%{http_code}" \
+              "$API_BASE/api/stations/nearby?lat=-33.8688&lng=151.2093&radius=10000" || true)
+            echo "  attempt $i: HTTP $STATUS"
+            if [ "$STATUS" = "200" ]; then echo "OK"; break; fi
+            if [ $i -eq 6 ]; then echo "::error::Smoke test failed after 6 attempts."; exit 1; fi
+            sleep 10
+          done
 
       # ── Deployment summary ────────────────────────────────────────────────
       - name: Print deployment summary
