@@ -231,3 +231,20 @@
 .retryBtn:active {
   transform: scale(0.97);
 }
+
+.feedback {
+  padding: 24px 16px 32px;
+  text-align: center;
+}
+
+.feedbackLink {
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+  text-decoration: none;
+  border-bottom: 1px dashed var(--color-border);
+  transition: color 0.15s;
+}
+
+.feedbackLink:hover {
+  color: var(--color-dark);
+}

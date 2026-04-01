@@ -11,6 +11,7 @@ import SearchBar from '../components/SearchBar';
 import NotificationBell from '../components/NotificationBell';
 import { type StateFilter } from '../components/StatePicker';
 import FilterBar from '../components/FilterBar';
+import InstallBanner from '../components/InstallBanner';
 import StatsModal, { type StatsModalMode } from '../components/StatsModal';
 import { pluralise } from '../utils/format';
 import type { StationDto } from '../types';
@@ -137,6 +138,7 @@ export default function HomePage() {
 
   return (
     <div className={styles.page}>
+      <InstallBanner />
       <header className={styles.header}>
         <div className={styles.headerTop}>
           <div>
@@ -270,6 +272,17 @@ export default function HomePage() {
           <StationMap stations={stations} center={coords!} />
         )}
       </main>
+
+      <div className={styles.feedback}>
+        <a
+          href="https://github.com/hdkaran/fuelfinder-au/issues/new"
+          target="_blank"
+          rel="noopener noreferrer"
+          className={styles.feedbackLink}
+        >
+          Report a bug or suggest a feature
+        </a>
+      </div>
 
       <StatsModal mode={statsModal} onClose={() => setStatsModal(null)} />
     </div>
