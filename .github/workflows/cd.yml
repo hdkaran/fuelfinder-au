@@ -114,12 +114,21 @@ jobs:
               "FuelCheck__ApiKey=${{ secrets.FUELCHECK_API_KEY }}"
 
       # ── Deploy frontend to Static Web Apps ────────────────────────────────
+      - name: Resolve App Insights connection string
+        run: |
+          CS=$(az monitor app-insights component show \
+            --app fuelfinder-insights \
+            --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
+            --query connectionString -o tsv 2>/dev/null || true)
+          echo "APPINSIGHTS_CS=$CS" >> $GITHUB_ENV
+
       - name: Deploy frontend to Static Web Apps
         if: hashFiles('src/web/package.json') != ''
         uses: Azure/static-web-apps-deploy@v1
         env:
           VITE_API_BASE_URL: https://${{ env.APP_SERVICE_NAME }}.azurewebsites.net
           VITE_GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
+          VITE_APPINSIGHTS_CONNECTION_STRING: ${{ env.APPINSIGHTS_CS }}
         with:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
           repo_token: ${{ secrets.GITHUB_TOKEN }}

@@ -1,3 +1,4 @@
+import './lib/appInsights'; // initialise before anything else
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { Provider } from 'react-redux';
