@@ -1,10 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { RefreshCw, Fuel, MapPin, AlertTriangle, Search } from 'lucide-react';
 import { skipToken } from '@reduxjs/toolkit/query/react';
 import { useGetNearbyStationsQuery, useGetStatsSummaryQuery, useSearchStationsQuery } from '../api/fuelFinderApi';
 import StationCard from '../components/StationCard';
 import StationCardSkeleton from '../components/StationCardSkeleton';
 import StationMap from '../components/StationMap';
+import { ReportBar } from '../components/ReportBar/ReportBar';
 import { RADIUS_OPTIONS, type RadiusValue } from '../components/RadiusPicker';
 import { type SortValue } from '../components/SortPicker';
 import SearchBar from '../components/SearchBar';
@@ -65,6 +67,7 @@ interface Coords {
 }
 
 export default function HomePage() {
+  const navigate = useNavigate();
   const [coords, setCoords] = useState<Coords | null>(null);
   const [geoError, setGeoError] = useState<string | null>(null);
   const [view, setView] = useState<View>('list');
@@ -272,6 +275,8 @@ export default function HomePage() {
           <StationMap stations={stations} center={coords!} />
         )}
       </main>
+
+      <ReportBar onClick={() => navigate('/report')} />
 
       <div className={styles.feedback}>
         <a
