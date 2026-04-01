@@ -1,4 +1,7 @@
 :root {
+  /* Layout */
+  --report-bar-height: 64px;
+
   /* Brand */
   --color-amber: #f5a623;
   --color-dark: #1a1a1a;

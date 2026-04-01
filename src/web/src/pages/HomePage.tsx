@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { skipToken } from '@reduxjs/toolkit/query/react';
 import { useGetNearbyStationsQuery, useGetStatsSummaryQuery } from '../api/fuelFinderApi';
 import StationCard from '../components/StationCard';
 import StationMap from '../components/StationMap';
+import { ReportBar } from '../components/ReportBar/ReportBar';
 import { pluralise } from '../utils/format';
 import styles from './HomePage.module.css';
 
@@ -16,6 +18,7 @@ interface Coords {
 }
 
 export default function HomePage() {
+  const navigate = useNavigate();
   const [coords, setCoords] = useState<Coords | null>(null);
   const [geoError, setGeoError] = useState<string | null>(null);
   const [view, setView] = useState<View>('list');
@@ -122,6 +125,8 @@ export default function HomePage() {
           <StationMap stations={stations} center={coords!} />
         )}
       </main>
+
+      <ReportBar onClick={() => navigate('/report')} />
     </div>
   );
 }
