@@ -71,7 +71,7 @@ export default function StationDetailPage() {
       latitude: station.latitude,
       longitude: station.longitude,
     },
-    ...(availableFuels.length > 0 ? { fuelType: availableFuels } : {}),
+    fuelType: availableFuels,
     url: `https://fuelstock.com.au/stations/${station.id}`,
   };
 
