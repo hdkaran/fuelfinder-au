@@ -1,6 +1,6 @@
 import { X } from 'lucide-react';
 import { useGetTodayReportsQuery, useGetAffectedStationsQuery } from '../api/fuelFinderApi';
-import { pluralise } from '../utils/format';
+import { formatMinutesAgo, pluralise } from '../utils/format';
 import styles from './StatsModal.module.css';
 
 export type StatsModalMode = 'reports' | 'stations';
@@ -72,7 +72,7 @@ export default function StatsModal({ mode, onClose }: Props) {
                       </span>
                     </div>
                     <div className={styles.itemSub}>
-                      {r.stationAddress} &nbsp;·&nbsp; {r.minutesAgo < 1 ? 'just now' : `${r.minutesAgo}m ago`}
+                      {r.stationAddress} &nbsp;·&nbsp; {formatMinutesAgo(r.minutesAgo)}
                     </div>
                   </li>
                 ))}

@@ -96,7 +96,7 @@ export default function StationDetailPage() {
                     {REPORT_STATUS_LABEL[r.status] ?? r.status}
                   </span>
                   <span className={styles.reportTime}>
-                    {r.minutesAgo < 1 ? 'just now' : `${r.minutesAgo}m ago`}
+                    {formatMinutesAgo(r.minutesAgo)}
                   </span>
                 </li>
               ))}
