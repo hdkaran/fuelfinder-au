@@ -5,7 +5,7 @@ import { useGetStatsSummaryQuery } from '../api/fuelFinderApi';
 import { pluralise } from '../utils/format';
 import styles from './FuelShortagePage.module.css';
 
-const PAGE_TITLE = 'Petrol Shortage Australia — Real-Time Fuel Availability | FuelFinder AU';
+const PAGE_TITLE = 'Petrol Shortage Australia — Which Stations Have Fuel | FuelStock';
 const PAGE_DESCRIPTION =
   'Track the Australian petrol shortage in real time. See which stations near you have Diesel, ULP, E10, or Premium — crowdsourced reports updated every minute by drivers across Australia.';
 
@@ -63,7 +63,7 @@ export default function FuelShortagePage() {
           <h2 className={styles.sectionTitle}>About the petrol shortage</h2>
           <p className={styles.bodyText}>
             During fuel shortage events in Australia, panic buying can empty petrol stations
-            within hours. FuelFinder AU lets drivers report real-time fuel availability at
+            within hours. FuelStock lets drivers report real-time fuel availability at
             their local station so other drivers can check before they travel.
           </p>
           <p className={styles.bodyText}>

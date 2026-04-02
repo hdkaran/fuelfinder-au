@@ -55,7 +55,7 @@ export default function SuburbPage() {
     );
   }
 
-  const pageTitle = `Petrol & Diesel Availability in ${centroid.displayName}, ${centroid.state} — FuelFinder AU`;
+  const pageTitle = `Petrol & Diesel Availability in ${centroid.displayName}, ${centroid.state} — FuelStock`;
   const pageDescription = `Check which petrol stations in ${centroid.displayName}, ${centroid.state} have fuel right now. Real-time crowdsourced reports for Diesel, ULP, E10, and Premium near ${centroid.postcode}.`;
   const canonicalUrl = `https://fuelstock.com.au/suburbs/${centroid.state.toLowerCase()}/${centroid.slug}`;
 

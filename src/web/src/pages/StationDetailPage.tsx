@@ -75,12 +75,12 @@ export default function StationDetailPage() {
     url: `https://fuelstock.com.au/stations/${station.id}`,
   };
 
-  const pageDescription = `Check fuel availability at ${station.name} in ${station.suburb}, ${station.state}. ${availableFuels.length > 0 ? `Available: ${availableFuels.join(', ')}.` : ''} Crowdsourced reports from FuelFinder AU.`;
+  const pageDescription = `Check fuel availability at ${station.name} in ${station.suburb}, ${station.state}. ${availableFuels.length > 0 ? `Available: ${availableFuels.join(', ')}.` : ''} Crowdsourced reports from FuelStock.`;
 
   return (
     <div className={styles.page}>
       <Helmet>
-        <title>{station.name}, {station.suburb} — FuelFinder AU</title>
+        <title>{station.name}, {station.suburb} — FuelStock</title>
         <meta name="description" content={pageDescription} />
         <link rel="canonical" href={`https://fuelstock.com.au/stations/${station.id}`} />
         <script type="application/ld+json">{JSON.stringify(stationJsonLd)}</script>

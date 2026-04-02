@@ -108,8 +108,8 @@ export default function ReportPage() {
   return (
     <div className={styles.page}>
       <Helmet>
-        <title>Report Fuel Availability — FuelFinder AU</title>
-        <meta name="robots" content="noindex" />
+        <title>Report Fuel Availability — FuelStock</title>
+        <meta name="robots" content="noindex, nofollow" />
       </Helmet>
       <PageHeader
         backTo={`/stations/${stationId}`}

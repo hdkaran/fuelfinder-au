@@ -145,9 +145,12 @@ export default function HomePage() {
   return (
     <div className={styles.page}>
       <Helmet>
-        <title>Find Petrol &amp; Diesel Near You — FuelFinder AU</title>
+        <title>Find Petrol &amp; Diesel Near You — FuelStock</title>
         <meta name="description" content="Find petrol stations with fuel near you in Australia. Real-time crowdsourced availability for Diesel, ULP, E10, and Premium — petrol near me australia." />
         <link rel="canonical" href="https://fuelstock.com.au/" />
+        <meta property="og:title" content="Find Petrol &amp; Diesel Near You — FuelStock" />
+        <meta property="og:description" content="Find petrol stations with fuel near you in Australia. Real-time crowdsourced availability for Diesel, ULP, E10, and Premium." />
+        <meta property="og:image" content="https://fuelstock.com.au/og-image.png" />
       </Helmet>
       <InstallBanner />
       <header className={styles.header}>
