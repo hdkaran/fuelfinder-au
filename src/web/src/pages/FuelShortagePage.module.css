@@ -168,3 +168,15 @@
 .suburbLinks a:hover {
   text-decoration: underline;
 }
+
+.suburbLiveStat {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.875rem;
+  color: var(--color-dark);
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  background: var(--color-bg);
+  border-radius: 12px;
+}

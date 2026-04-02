@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { Fuel, AlertTriangle, MapPin } from 'lucide-react';
-import { useGetStatsSummaryQuery } from '../api/fuelFinderApi';
+import { useGetStatsSummaryQuery, useGetNearbyStationsQuery } from '../api/fuelFinderApi';
 import { pluralise } from '../utils/format';
 import styles from './FuelShortagePage.module.css';
 
@@ -9,10 +9,21 @@ const PAGE_TITLE = 'Petrol Shortage Australia — Which Stations Have Fuel | Fue
 const PAGE_DESCRIPTION =
   'Track the Australian petrol shortage in real time. See which stations near you have Diesel, ULP, E10, or Premium — crowdsourced reports updated every minute by drivers across Australia.';
 
+// Sydney CBD coordinates — used to show a live suburb station count on this page
+const SYDNEY_PARAMS = { lat: -33.8688, lng: 151.2093, radius: 20_000 };
+
 export default function FuelShortagePage() {
   const { data: stats, isLoading } = useGetStatsSummaryQuery(undefined, {
     pollingInterval: 60_000,
   });
+
+  const { data: sydneyStations } = useGetNearbyStationsQuery(SYDNEY_PARAMS, {
+    pollingInterval: 120_000,
+  });
+
+  const sydneyWithFuel = sydneyStations
+    ? sydneyStations.filter((s) => s.status === 'available' || s.status === 'low').length
+    : null;
 
   return (
     <div className={styles.page}>
@@ -56,6 +67,14 @@ export default function FuelShortagePage() {
                 <span className={styles.statLabel}>{pluralise(stats.stationsAffected, 'station')} affected</span>
               </div>
             </div>
+          )}
+
+          {sydneyWithFuel !== null && (
+            <p className={styles.suburbLiveStat}>
+              <MapPin size={14} className={styles.statIcon} />
+              <strong>{sydneyWithFuel}</strong>{' '}
+              {pluralise(sydneyWithFuel, 'station')} with fuel in Sydney right now
+            </p>
           )}
         </section>
 
