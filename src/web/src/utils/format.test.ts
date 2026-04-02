@@ -37,10 +37,17 @@ describe('formatMinutesAgo', () => {
     expect(formatMinutesAgo(59)).toBe('59 min ago');
   });
 
-  it('returns hours for values 60 and above', () => {
+  it('returns hours for values 60 and above (but under 1440)', () => {
     expect(formatMinutesAgo(60)).toBe('1 hr ago');
     expect(formatMinutesAgo(120)).toBe('2 hrs ago');
     expect(formatMinutesAgo(90)).toBe('1 hr ago');
+    expect(formatMinutesAgo(1439)).toBe('23 hrs ago');
+  });
+
+  it('returns days for values 1440 and above', () => {
+    expect(formatMinutesAgo(1440)).toBe('1 day ago');
+    expect(formatMinutesAgo(2880)).toBe('2 days ago');
+    expect(formatMinutesAgo(2800)).toBe('1 day ago');
   });
 });
 
