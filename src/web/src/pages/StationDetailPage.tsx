@@ -71,7 +71,7 @@ export default function StationDetailPage() {
       latitude: station.latitude,
       longitude: station.longitude,
     },
-    ...(availableFuels.length > 0 ? { amenityFeature: availableFuels.map((fuel) => ({ '@type': 'LocationFeatureSpecification', name: fuel, value: true })) } : {}),
+    ...(availableFuels.length > 0 ? { fuelType: availableFuels } : {}),
     url: `https://fuelstock.com.au/stations/${station.id}`,
   };
 

@@ -21,9 +21,10 @@ export default function FuelShortagePage() {
     pollingInterval: 120_000,
   });
 
-  const sydneyWithFuel = sydneyStations
+  const sydneyWithFuelCount = sydneyStations
     ? sydneyStations.filter((s) => s.status === 'available' || s.status === 'low').length
     : null;
+  const displaySydneyCount = sydneyWithFuelCount !== null ? sydneyWithFuelCount.toString() : 'several';
 
   return (
     <div className={styles.page}>
@@ -69,13 +70,11 @@ export default function FuelShortagePage() {
             </div>
           )}
 
-          {sydneyWithFuel !== null && (
-            <p className={styles.suburbLiveStat}>
-              <MapPin size={14} className={styles.statIcon} />
-              <strong>{sydneyWithFuel}</strong>{' '}
-              {pluralise(sydneyWithFuel, 'station')} with fuel in Sydney right now
-            </p>
-          )}
+          <p className={styles.suburbLiveStat}>
+            <MapPin size={14} className={styles.statIcon} />
+            <strong>{displaySydneyCount}</strong>{' '}
+            {pluralise(sydneyWithFuelCount ?? 0, 'station')} with fuel in Sydney right now
+          </p>
         </section>
 
         <section className={styles.infoSection}>

@@ -62,10 +62,7 @@
       "/suburbs/tas/devonport",
       "/suburbs/nt/darwin",
       "/suburbs/nt/alice-springs",
-      "/suburbs/nt/palmerston",
-      "/stations/00000000-0000-0000-0000-000000000001",
-      "/stations/00000000-0000-0000-0000-000000000002",
-      "/stations/00000000-0000-0000-0000-000000000003"
+      "/suburbs/nt/palmerston"
     ],
     "puppeteerArgs": ["--no-sandbox", "--disable-setuid-sandbox"]
   },

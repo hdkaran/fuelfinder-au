@@ -183,6 +183,37 @@ jobs:
             sleep 10
           done
 
+      # ── Smoke test: suburb landing pages ──────────────────────────────────
+      - name: Smoke test suburb pages
+        run: |
+          APP_URL="https://${{ env.SWA_HOST }}"
+          SUBURBS=(
+            "nsw/parramatta"
+            "nsw/sydney-cbd"
+            "vic/melbourne-cbd"
+            "vic/richmond"
+            "qld/brisbane-cbd"
+            "qld/surfers-paradise"
+            "wa/perth-cbd"
+            "sa/adelaide-cbd"
+            "act/canberra"
+            "nsw/newcastle"
+          )
+          FAILED=0
+          for suburb in "${SUBURBS[@]}"; do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$APP_URL/suburbs/$suburb")
+            if [ "$STATUS" != "200" ]; then
+              echo "FAIL: /suburbs/$suburb returned $STATUS"
+              FAILED=$((FAILED + 1))
+            else
+              echo "OK: /suburbs/$suburb"
+            fi
+          done
+          if [ $FAILED -gt 0 ]; then
+            echo "::error::$FAILED suburb pages failed smoke test"
+            exit 1
+          fi
+
       # ── Deployment summary ────────────────────────────────────────────────
       - name: Print deployment summary
         if: hashFiles('src/FuelFinder.Api/Dockerfile') != ''
