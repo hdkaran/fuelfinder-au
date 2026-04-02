@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { CheckCircle, Check, X as XIcon } from 'lucide-react';
 import { useParams, Link } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
 import { skipToken } from '@reduxjs/toolkit/query/react';
 import { useGetStationQuery, useSubmitReportMutation } from '../api/fuelFinderApi';
 import { trackEvent } from '../lib/appInsights';
@@ -77,7 +78,12 @@ export default function ReportPage() {
 
   if (isSuccess) {
     return (
-      <div className={styles.page}>
+      <>
+        <Helmet>
+          <title>Report submitted — FuelStock</title>
+          <meta name="robots" content="noindex, nofollow" />
+        </Helmet>
+        <div className={styles.page}>
         <div className={styles.success}>
           <div className={styles.successIcon}>
             <CheckCircle size={40} strokeWidth={1.8} />
@@ -100,12 +106,17 @@ export default function ReportPage() {
           </Link>
           <Link to="/" className={styles.successLink}>Go to home</Link>
         </div>
-      </div>
+        </div>
+      </>
     );
   }
 
   return (
     <div className={styles.page}>
+      <Helmet>
+        <title>Report Fuel Availability — FuelStock</title>
+        <meta name="robots" content="noindex, nofollow" />
+      </Helmet>
       <PageHeader
         backTo={`/stations/${stationId}`}
         title="Report status"

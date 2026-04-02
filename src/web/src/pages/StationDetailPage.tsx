@@ -1,12 +1,21 @@
 import { useParams, Link } from 'react-router-dom';
 import { skipToken } from '@reduxjs/toolkit/query/react';
 import { MapPin, Clock, Navigation } from 'lucide-react';
+import { Helmet } from 'react-helmet-async';
 import { useGetStationQuery, useGetRecentReportsQuery } from '../api/fuelFinderApi';
 import PageHeader from '../components/PageHeader';
 import StatusPill from '../components/StatusPill';
 import FuelBadge from '../components/FuelBadge';
 import { formatDistance, formatMinutesAgo, pluralise } from '../utils/format';
+import type { FuelType } from '../types';
 import styles from './StationDetailPage.module.css';
+
+const FUEL_TYPE_SCHEMA_LABEL: Record<FuelType, string> = {
+  ULP:     'Unleaded',
+  E10:     'E10',
+  Diesel:  'Diesel',
+  Premium: 'Premium Unleaded',
+};
 
 const REPORT_STATUS_LABEL: Record<string, string> = {
   available: 'Fuel available',
@@ -42,8 +51,40 @@ export default function StationDetailPage() {
 
   const mapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${station.latitude},${station.longitude}`;
 
+  const availableFuels = station.fuelAvailability
+    .filter((fa) => fa.available === true)
+    .map((fa) => FUEL_TYPE_SCHEMA_LABEL[fa.fuelType]);
+
+  const stationJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'GasStation',
+    name: station.name,
+    address: {
+      '@type': 'PostalAddress',
+      streetAddress: station.address,
+      addressLocality: station.suburb,
+      addressRegion: station.state,
+      addressCountry: 'AU',
+    },
+    geo: {
+      '@type': 'GeoCoordinates',
+      latitude: station.latitude,
+      longitude: station.longitude,
+    },
+    fuelType: availableFuels,
+    url: `https://fuelstock.com.au/stations/${station.id}`,
+  };
+
+  const pageDescription = `Check fuel availability at ${station.name} in ${station.suburb}, ${station.state}. ${availableFuels.length > 0 ? `Available: ${availableFuels.join(', ')}.` : ''} Crowdsourced reports from FuelStock.`;
+
   return (
     <div className={styles.page}>
+      <Helmet>
+        <title>{station.name}, {station.suburb} — FuelStock</title>
+        <meta name="description" content={pageDescription} />
+        <link rel="canonical" href={`https://fuelstock.com.au/stations/${station.id}`} />
+        <script type="application/ld+json">{JSON.stringify(stationJsonLd)}</script>
+      </Helmet>
       <PageHeader backTo="/" title={station.name} subtitle={station.brand} />
 
       <main className={styles.main}>

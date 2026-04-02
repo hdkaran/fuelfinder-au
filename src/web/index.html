@@ -36,7 +36,7 @@
     <meta name="twitter:description" content="Check which petrol stations near you have fuel right now. Crowdsourced reports from drivers across Australia." />
     <meta name="twitter:image" content="https://fuelstock.com.au/icon-512.png" />
 
-    <!-- Structured data -->
+    <!-- Structured data: WebApplication -->
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
@@ -48,6 +48,25 @@
       "operatingSystem": "Any",
       "offers": { "@type": "Offer", "price": "0", "priceCurrency": "AUD" },
       "areaServed": { "@type": "Country", "name": "Australia" }
+    }
+    </script>
+
+    <!-- Structured data: WebSite + SearchAction -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "name": "FuelStock",
+      "url": "https://fuelstock.com.au",
+      "description": "Find petrol near you in Australia — real-time crowdsourced fuel availability.",
+      "potentialAction": {
+        "@type": "SearchAction",
+        "target": {
+          "@type": "EntryPoint",
+          "urlTemplate": "https://fuelstock.com.au/?q={search_term_string}"
+        },
+        "query-input": "required name=search_term_string"
+      }
     }
     </script>
 

@@ -163,7 +163,7 @@ jobs:
         run: |
           API_BASE="https://${{ env.APP_SERVICE_NAME }}.azurewebsites.net"
           for i in 1 2 3 4 5 6; do
-            STATUS=$(curl --silent --output /dev/null --write-out "%{http_code}" "$API_BASE/api/stats/summary" || true)
+            STATUS=$(curl --silent --max-time 30 --output /dev/null --write-out "%{http_code}" "$API_BASE/api/stats/summary" || true)
             echo "  attempt $i: HTTP $STATUS"
             if [ "$STATUS" = "200" ]; then echo "OK"; break; fi
             if [ $i -eq 6 ]; then echo "::error::Smoke test failed after 6 attempts."; exit 1; fi
@@ -182,6 +182,43 @@ jobs:
             if [ $i -eq 6 ]; then echo "::error::Smoke test failed after 6 attempts."; exit 1; fi
             sleep 10
           done
+
+      # ── Smoke test: suburb landing pages ──────────────────────────────────
+      # Slugs must match entries in suburbCentroids.ts.
+      # Note: SWA navigationFallback returns HTTP 200 for ALL paths (even unknown ones),
+      # so we must check page content — not just status — to catch "Suburb not found" renders.
+      - name: Smoke test suburb pages
+        run: |
+          APP_URL="https://${{ env.SWA_HOST }}"
+          SUBURBS=(
+            "nsw/sydney"
+            "nsw/parramatta"
+            "nsw/newcastle"
+            "vic/melbourne"
+            "vic/geelong"
+            "qld/brisbane"
+            "qld/gold-coast"
+            "wa/perth"
+            "sa/glenelg"
+            "act/canberra"
+          )
+          FAILED=0
+          for suburb in "${SUBURBS[@]}"; do
+            BODY=$(curl -s --max-time 15 "$APP_URL/suburbs/$suburb")
+            if echo "$BODY" | grep -qi "suburb not found"; then
+              echo "FAIL: /suburbs/$suburb rendered 'Suburb not found'"
+              FAILED=$((FAILED + 1))
+            elif [ -z "$BODY" ]; then
+              echo "FAIL: /suburbs/$suburb returned empty response"
+              FAILED=$((FAILED + 1))
+            else
+              echo "OK: /suburbs/$suburb"
+            fi
+          done
+          if [ $FAILED -gt 0 ]; then
+            echo "::error::$FAILED suburb pages failed smoke test"
+            exit 1
+          fi
 
       # ── Deployment summary ────────────────────────────────────────────────
       - name: Print deployment summary

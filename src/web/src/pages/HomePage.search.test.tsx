@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import { HelmetProvider } from 'react-helmet-async';
 import type { StationDto } from '../types';
 
 // ── Stub geolocation so the component gets coords on mount ────────────────────
@@ -75,9 +76,11 @@ function setupMocks({
 
 function renderPage() {
   return render(
-    <MemoryRouter>
-      <HomePage />
-    </MemoryRouter>,
+    <HelmetProvider>
+      <MemoryRouter>
+        <HomePage />
+      </MemoryRouter>
+    </HelmetProvider>,
   );
 }
 
