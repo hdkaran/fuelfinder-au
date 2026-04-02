@@ -69,12 +69,14 @@ builder.Services.AddRateLimiter(options =>
 builder.Services.AddHttpClient("FuelCheck");
 builder.Services.AddHttpClient("FuelWatch");
 builder.Services.AddHttpClient("FuelPricesQld");
+builder.Services.AddHttpClient("SaFuelPrices");
 builder.Services.AddScoped<StationQueryService>();
 builder.Services.AddScoped<ReportService>();
 builder.Services.AddScoped<StatsService>();
 builder.Services.AddScoped<StationSeeder>();
 builder.Services.AddScoped<WaStationSeeder>();
 builder.Services.AddScoped<QldStationSeeder>();
+builder.Services.AddScoped<SaStationSeeder>();
 builder.Services.AddScoped<PushService>();
 
 var app = builder.Build();
@@ -104,6 +106,14 @@ using (var scope = app.Services.CreateScope())
         var log = scope.ServiceProvider.GetRequiredService<ILogger<QldStationSeeder>>();
         try { await qldSeeder.SeedAsync(); }
         catch (Exception ex) { log.LogError(ex, "QLD station seeding failed."); }
+    }
+
+    var saSeeder = scope.ServiceProvider.GetService<SaStationSeeder>();
+    if (saSeeder is not null)
+    {
+        var log = scope.ServiceProvider.GetRequiredService<ILogger<SaStationSeeder>>();
+        try { await saSeeder.SeedAsync(); }
+        catch (Exception ex) { log.LogError(ex, "SA station seeding failed."); }
     }
 }
 
