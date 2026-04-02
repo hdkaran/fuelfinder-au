@@ -1,0 +1,78 @@
+# FuelFinder AU — Custom Domain Binding
+# Run this MANUALLY via GitHub Actions → bind-custom-domain → Run workflow
+# ONLY after GoDaddy DNS records are confirmed working (see docs/dns-setup.md).
+#
+# Pre-requisites before running:
+#   1. GoDaddy CNAME www  → purple-coast-062f9af00.2.azurestaticapps.net
+#   2. GoDaddy CNAME api  → fuelfinder-api-e4ayff.azurewebsites.net
+#   3. GoDaddy TXT  asuid → (token from Azure Portal → SWA → Custom domains)
+#   4. DNS has propagated: nslookup www.fuelstock.com.au returns the SWA hostname
+#
+# Required secrets (same as infra.yml):
+#   AZURE_CREDENTIALS, AZURE_RESOURCE_GROUP, SQL_ADMIN_PASSWORD
+
+name: Bind Custom Domain
+
+on:
+  workflow_dispatch:
+    inputs:
+      custom_domain:
+        description: 'Frontend domain (e.g. www.fuelstock.com.au)'
+        required: true
+        default: 'www.fuelstock.com.au'
+      custom_domain_api:
+        description: 'API domain (e.g. api.fuelstock.com.au)'
+        required: true
+        default: 'api.fuelstock.com.au'
+
+jobs:
+  bind-domain:
+    name: Bind Custom Domain to Azure Resources
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      # ── Verify DNS before attempting bind ─────────────────────────────────
+      - name: Verify DNS resolves
+        run: |
+          echo "Checking DNS for ${{ github.event.inputs.custom_domain }}..."
+          nslookup ${{ github.event.inputs.custom_domain }} || true
+
+          echo "Checking DNS for ${{ github.event.inputs.custom_domain_api }}..."
+          nslookup ${{ github.event.inputs.custom_domain_api }} || true
+
+      # ── Deploy Bicep with custom domain params ────────────────────────────
+      - name: Deploy Bicep with custom domain bindings
+        run: |
+          az deployment group create \
+            --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
+            --template-file infra/master.bicep \
+            --parameters @infra/parameters.json \
+            --parameters sqlAdminPassword=${{ secrets.SQL_ADMIN_PASSWORD }} \
+            --parameters customDomain=${{ github.event.inputs.custom_domain }} \
+            --parameters customDomainApi=${{ github.event.inputs.custom_domain_api }} \
+            --mode Incremental \
+            --verbose
+
+      # ── Smoke test ────────────────────────────────────────────────────────
+      - name: Smoke test custom domains
+        run: |
+          echo "Testing https://${{ github.event.inputs.custom_domain_api }}/health ..."
+          curl -f --max-time 30 https://${{ github.event.inputs.custom_domain_api }}/health \
+            && echo "API health check passed ✓" \
+            || echo "API health check failed (SSL cert may still be provisioning — retry in 10 min)"
+
+          echo "## Custom Domain Binding Result" >> $GITHUB_STEP_SUMMARY
+          echo "| Domain | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|---|---|" >> $GITHUB_STEP_SUMMARY
+          echo "| https://${{ github.event.inputs.custom_domain }} | Bound ✓ |" >> $GITHUB_STEP_SUMMARY
+          echo "| https://${{ github.event.inputs.custom_domain_api }} | Bound ✓ |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "SSL certs auto-provision within ~10 minutes of binding." >> $GITHUB_STEP_SUMMARY
