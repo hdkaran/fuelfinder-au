@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
 import { RefreshCw, Fuel, MapPin, AlertTriangle, Search } from 'lucide-react';
 import { skipToken } from '@reduxjs/toolkit/query/react';
 import { useGetNearbyStationsQuery, useGetStatsSummaryQuery, useSearchStationsQuery } from '../api/fuelFinderApi';
@@ -143,6 +144,11 @@ export default function HomePage() {
 
   return (
     <div className={styles.page}>
+      <Helmet>
+        <title>Find Petrol &amp; Diesel Near You — FuelFinder AU</title>
+        <meta name="description" content="Find petrol stations with fuel near you in Australia. Real-time crowdsourced availability for Diesel, ULP, E10, and Premium — petrol near me australia." />
+        <link rel="canonical" href="https://fuelstock.com.au/" />
+      </Helmet>
       <InstallBanner />
       <header className={styles.header}>
         <div className={styles.headerTop}>

@@ -1,0 +1,170 @@
+.page {
+  max-width: 420px;
+  margin: 0 auto;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-bg);
+}
+
+.header {
+  padding: 20px 16px 16px;
+  background: var(--color-surface);
+  border-bottom: 1px solid #e8e8e4;
+}
+
+.backLink {
+  display: inline-block;
+  font-size: 0.85rem;
+  color: var(--color-amber);
+  text-decoration: none;
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+
+.backLink:hover {
+  text-decoration: underline;
+}
+
+.heading {
+  font-family: 'Outfit', sans-serif;
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: var(--color-dark);
+  margin: 0 0 6px;
+  line-height: 1.25;
+}
+
+.accent {
+  color: var(--color-amber);
+}
+
+.subheading {
+  font-size: 0.875rem;
+  color: #666;
+  margin: 0;
+}
+
+.main {
+  flex: 1;
+  padding: 16px 16px 80px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.liveSection {
+  background: var(--color-surface);
+  border-radius: 18px;
+  padding: 16px;
+}
+
+.infoSection {
+  background: var(--color-surface);
+  border-radius: 18px;
+  padding: 16px;
+}
+
+.sectionTitle {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--color-dark);
+  margin: 0 0 12px;
+}
+
+.statsRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.statCard {
+  background: var(--color-bg);
+  border-radius: 14px;
+  padding: 16px 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  text-align: center;
+}
+
+.statCardSkeleton {
+  background: #e8e8e4;
+  border-radius: 14px;
+  height: 100px;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.statIcon {
+  color: var(--color-amber);
+}
+
+.statValue {
+  font-family: 'Outfit', sans-serif;
+  font-size: 1.75rem;
+  font-weight: 900;
+  color: var(--color-dark);
+  line-height: 1;
+}
+
+.statLabel {
+  font-size: 0.75rem;
+  color: #666;
+  font-weight: 500;
+}
+
+.bodyText {
+  font-size: 0.9rem;
+  color: #444;
+  margin: 0 0 10px;
+  line-height: 1.6;
+}
+
+.bodyText:last-of-type {
+  margin-bottom: 0;
+}
+
+.ctaBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--color-amber);
+  color: #fff;
+  font-weight: 700;
+  padding: 12px 20px;
+  border-radius: 16px;
+  text-decoration: none;
+  font-size: 0.95rem;
+  margin-top: 12px;
+  transition: opacity 0.15s;
+}
+
+.ctaBtn:hover {
+  opacity: 0.9;
+}
+
+.suburbLinks {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.suburbLinks a {
+  color: var(--color-amber);
+  font-weight: 600;
+  text-decoration: none;
+  font-size: 0.9rem;
+}
+
+.suburbLinks a:hover {
+  text-decoration: underline;
+}

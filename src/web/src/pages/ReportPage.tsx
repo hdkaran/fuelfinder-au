@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { CheckCircle, Check, X as XIcon } from 'lucide-react';
 import { useParams, Link } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
 import { skipToken } from '@reduxjs/toolkit/query/react';
 import { useGetStationQuery, useSubmitReportMutation } from '../api/fuelFinderApi';
 import { trackEvent } from '../lib/appInsights';
@@ -106,6 +107,10 @@ export default function ReportPage() {
 
   return (
     <div className={styles.page}>
+      <Helmet>
+        <title>Report Fuel Availability — FuelFinder AU</title>
+        <meta name="robots" content="noindex" />
+      </Helmet>
       <PageHeader
         backTo={`/stations/${stationId}`}
         title="Report status"
