@@ -78,7 +78,12 @@ export default function ReportPage() {
 
   if (isSuccess) {
     return (
-      <div className={styles.page}>
+      <>
+        <Helmet>
+          <title>Report submitted — FuelStock</title>
+          <meta name="robots" content="noindex, nofollow" />
+        </Helmet>
+        <div className={styles.page}>
         <div className={styles.success}>
           <div className={styles.successIcon}>
             <CheckCircle size={40} strokeWidth={1.8} />
@@ -101,7 +106,8 @@ export default function ReportPage() {
           </Link>
           <Link to="/" className={styles.successLink}>Go to home</Link>
         </div>
-      </div>
+        </div>
+      </>
     );
   }
 
