@@ -10,6 +10,7 @@ namespace FuelFinder.Api.Services;
 /// One-time seeder that populates QLD stations from the Queensland Fuel Price Reporting API.
 /// Requires a subscriber token in QldFuelPrices:SubscriberToken (injected from Key Vault in prod).
 /// Uses geoRegionLevel=3 / geoRegionId=1 which maps to the Queensland state region.
+/// Suburb is resolved from the G1 (level-1 geographic region) field on each site.
 /// </summary>
 public class QldStationSeeder(
     AppDbContext db,
@@ -44,12 +45,17 @@ public class QldStationSeeder(
 
         var client = httpClientFactory.CreateClient("FuelPricesQld");
 
-        // Build brand lookup: BrandId → Name
+        // Fetch brand lookup: BrandId → Name
         var brands = await FetchBrandsAsync(client, token, ct);
         if (brands.Count == 0)
             logger.LogWarning("FuelPricesQLD returned no brands — brand names will be empty.");
 
-        // geoRegionLevel=3 / geoRegionId=1 is the Queensland state-level region
+        // Fetch suburb lookup: G1 region ID → suburb name (level-1 geographic regions)
+        var suburbs = await FetchSuburbLookupAsync(client, token, ct);
+        if (suburbs.Count == 0)
+            logger.LogWarning("FuelPricesQLD returned no geographic regions — suburb names will be empty.");
+
+        // geoRegionLevel=3 / geoRegionId=1 = Queensland state region
         List<QldSite> sites;
         try
         {
@@ -62,7 +68,7 @@ public class QldStationSeeder(
             return;
         }
 
-        var seen     = new HashSet<int>();  // de-dupe by SiteId
+        var seen     = new HashSet<int>();
         var stations = new List<Station>();
 
         foreach (var site in sites)
@@ -72,14 +78,15 @@ public class QldStationSeeder(
             if (string.IsNullOrWhiteSpace(site.Name)) continue;
 
             brands.TryGetValue(site.BrandId, out var brandName);
+            suburbs.TryGetValue(site.G1, out var suburb);
 
             stations.Add(new Station
             {
                 Id        = Guid.NewGuid(),
                 Name      = site.Name.Trim(),
                 Brand     = brandName?.Trim() ?? string.Empty,
-                Address   = ParseStreetAddress(site.Address),
-                Suburb    = ParseSuburb(site.Address, site.Postcode),
+                Address   = site.Address.Trim(),
+                Suburb    = ToTitleCase(suburb ?? string.Empty),
                 State     = "QLD",
                 Latitude  = site.Lat,
                 Longitude = site.Lng,
@@ -112,13 +119,32 @@ public class QldStationSeeder(
 
         var body   = await response.Content.ReadAsStringAsync(ct);
         var result = JsonSerializer.Deserialize<BrandsResponse>(body, JsonOptions);
-
         return result?.Brands?.ToDictionary(b => b.BrandId, b => b.Name) ?? [];
+    }
+
+    private async Task<Dictionary<long, string>> FetchSuburbLookupAsync(HttpClient client, string token, CancellationToken ct)
+    {
+        using var request = BuildRequest($"/Subscriber/GetCountryGeographicRegions?countryId={CountryId}", token);
+        var response = await client.SendAsync(request, ct);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            logger.LogWarning("GetCountryGeographicRegions returned {Status}.", response.StatusCode);
+            return [];
+        }
+
+        var body   = await response.Content.ReadAsStringAsync(ct);
+        var result = JsonSerializer.Deserialize<RegionsResponse>(body, JsonOptions);
+
+        // Level-1 regions are suburb/locality names; G1 on each site references these IDs
+        return result?.GeographicRegions?
+            .Where(r => r.GeoRegionLevel == 1)
+            .ToDictionary(r => r.GeoRegionId, r => r.Name)
+            ?? [];
     }
 
     private async Task<List<QldSite>> FetchSitesAsync(HttpClient client, string token, CancellationToken ct)
     {
-        // Level 3 = state region; GeoRegionId 1 = QUEENSLAND
         var path = $"/Subscriber/GetFullSiteDetails?countryId={CountryId}&geoRegionLevel=3&geoRegionId=1";
         using var request = BuildRequest(path, token);
 
@@ -136,16 +162,9 @@ public class QldStationSeeder(
             Headers = { { "Authorization", $"FPDAPI SubscriberToken={token}" } }
         };
 
-    // Address examples: "61 Burrowes St", "126 Barwon Street" — suburb is in a separate postcode lookup
-    // Since the API doesn't return suburb directly, extract from address or use postcode as fallback
-    private static string ParseStreetAddress(string raw) => raw.Trim();
-
-    private static string ParseSuburb(string address, string postcode)
-    {
-        // The QLD API address field is street only (e.g. "61 Burrowes St")
-        // Suburb isn't in the address — return empty; postcode is available if needed
-        return string.Empty;
-    }
+    // Suburb names come back in ALL CAPS ("SURAT") — convert to title case
+    private static string ToTitleCase(string s) =>
+        System.Globalization.CultureInfo.InvariantCulture.TextInfo.ToTitleCase(s.ToLowerInvariant());
 
     // ── DTOs ──────────────────────────────────────────────────────────────────
 
@@ -160,19 +179,31 @@ public class QldStationSeeder(
         public string Name    { get; set; } = string.Empty;
     }
 
+    private sealed class RegionsResponse
+    {
+        public List<QldRegion>? GeographicRegions { get; set; }
+    }
+
+    private sealed class QldRegion
+    {
+        public int    GeoRegionLevel { get; set; }
+        public long   GeoRegionId   { get; set; }
+        public string Name          { get; set; } = string.Empty;
+    }
+
     private sealed class SitesResponse
     {
-        // Response uses compressed single-letter key: { "S": [...] }
         public List<QldSite>? S { get; set; }
     }
 
     private sealed class QldSite
     {
-        [JsonPropertyName("S")] public int    SiteId   { get; set; }
-        [JsonPropertyName("A")] public string Address  { get; set; } = string.Empty;
-        [JsonPropertyName("N")] public string Name     { get; set; } = string.Empty;
-        [JsonPropertyName("B")] public int    BrandId  { get; set; }
-        [JsonPropertyName("P")] public string Postcode { get; set; } = string.Empty;
+        [JsonPropertyName("S")]  public int    SiteId   { get; set; }
+        [JsonPropertyName("A")]  public string Address  { get; set; } = string.Empty;
+        [JsonPropertyName("N")]  public string Name     { get; set; } = string.Empty;
+        [JsonPropertyName("B")]  public int    BrandId  { get; set; }
+        [JsonPropertyName("P")]  public string Postcode { get; set; } = string.Empty;
+        [JsonPropertyName("G1")] public long   G1       { get; set; }  // level-1 region = suburb
         public double Lat { get; set; }
         public double Lng { get; set; }
     }
