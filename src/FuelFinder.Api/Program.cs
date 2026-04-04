@@ -15,8 +15,9 @@ var kvUri = builder.Configuration["KeyVault:Uri"];
 if (!string.IsNullOrEmpty(kvUri))
     builder.Configuration.AddAzureKeyVault(new Uri(kvUri), new DefaultAzureCredential());
 
-// Database
-builder.Services.AddDbContext<AppDbContext>(options =>
+// Database — factory enables parallel DbContext usage in PriceSyncService;
+// also registers a scoped DbContext so existing services work unchanged.
+builder.Services.AddDbContextFactory<AppDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("SqlConnection")));
 
 // Distributed cache — Redis in production, in-memory fallback for local dev
@@ -78,6 +79,8 @@ builder.Services.AddScoped<WaStationSeeder>();
 builder.Services.AddScoped<QldStationSeeder>();
 builder.Services.AddScoped<SaStationSeeder>();
 builder.Services.AddScoped<PushService>();
+builder.Services.AddScoped<IPriceSyncService, PriceSyncService>();
+builder.Services.AddHostedService<PriceSyncBackgroundService>();
 
 var app = builder.Build();
 
@@ -126,6 +129,7 @@ api.MapStationEndpoints();
 api.MapReportEndpoints();
 api.MapStatsEndpoints();
 api.MapPushEndpoints();
+api.MapPriceEndpoints();
 
 app.MapGet("/health", () => Results.Ok(new { status = "healthy" }));
 

@@ -31,6 +31,7 @@ vi.mock('../api/fuelFinderApi', () => ({
   useGetAffectedStationsQuery: vi.fn(() => ({ data: undefined, isLoading: false })),
   useSubscribePushMutation:    vi.fn(() => [vi.fn()]),
   useUnsubscribePushMutation:  vi.fn(() => [vi.fn()]),
+  useGetNearbyPricesQuery:     vi.fn(() => ({ data: undefined })),
 }));
 
 import { useGetNearbyStationsQuery, useSearchStationsQuery, useGetStatsSummaryQuery } from '../api/fuelFinderApi';
@@ -42,12 +43,14 @@ const stationA: StationDto = {
   suburb: 'Bondi', state: 'NSW', latitude: -33.89, longitude: 151.27,
   distanceMetres: 1200, status: 'available',
   fuelAvailability: [], reportCount: 2, lastReportMinutesAgo: 10,
+  latestPrices: [],
 };
 const stationB: StationDto = {
   id: 's2', name: 'BP Newtown', brand: 'BP', address: '5 King St',
   suburb: 'Newtown', state: 'NSW', latitude: -33.9, longitude: 151.18,
   distanceMetres: 3400, status: 'low',
   fuelAvailability: [], reportCount: 1, lastReportMinutesAgo: 30,
+  latestPrices: [],
 };
 
 const noopRefetch = vi.fn();
@@ -96,6 +99,7 @@ const stationOut: StationDto = {
   suburb: 'Surry Hills', state: 'NSW', latitude: -33.88, longitude: 151.21,
   distanceMetres: 2000, status: 'out',
   fuelAvailability: [], reportCount: 0, lastReportMinutesAgo: null,
+  latestPrices: [],
 };
 
 // ── Tests ─────────────────────────────────────────────────────────────────────

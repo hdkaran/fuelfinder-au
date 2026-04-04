@@ -95,6 +95,29 @@
   margin-bottom: 8px;
 }
 
+/* ── Prices row ──────────────────────────────────────────────────────────── */
+
+.prices {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  margin-bottom: 4px;
+  /* Hide scrollbar but keep scrollability */
+  scrollbar-width: none;
+}
+
+.prices::-webkit-scrollbar {
+  display: none;
+}
+
+/* Fade right edge to hint at scroll on mobile */
+.prices::after {
+  content: '';
+  flex-shrink: 0;
+  width: 8px;
+}
+
 /* ── Footer ────────────────────────────────────────────────────────────────── */
 
 .footer {

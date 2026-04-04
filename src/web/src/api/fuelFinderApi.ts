@@ -1,7 +1,14 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
-import type { StationDto, ReportDto, ReportPayload, StatsDto, TodayReportDto, AffectedStationDto } from '../types';
+import type { StationDto, ReportDto, ReportPayload, StatsDto, TodayReportDto, AffectedStationDto, PriceDto } from '../types';
 
 interface NearbyStationsParams {
+  lat: number;
+  lng: number;
+  radius: number;
+  fuelType?: string;
+}
+
+interface NearbyPricesParams {
   lat: number;
   lng: number;
   radius: number;
@@ -24,7 +31,7 @@ export interface PushSubscribePayload {
 
 export const fuelFinderApi = createApi({
   reducerPath: 'fuelFinderApi',
-  tagTypes: ['NearbyStations', 'SearchStations', 'Station', 'RecentReports', 'Stats'],
+  tagTypes: ['NearbyStations', 'SearchStations', 'Station', 'RecentReports', 'Stats', 'NearbyPrices'],
   baseQuery: fetchBaseQuery({
     baseUrl: import.meta.env.VITE_API_BASE_URL
       ? `${import.meta.env.VITE_API_BASE_URL}/api`
@@ -91,6 +98,13 @@ export const fuelFinderApi = createApi({
         method: 'DELETE',
       }),
     }),
+    getNearbyPrices: builder.query<PriceDto[], NearbyPricesParams>({
+      query: ({ lat, lng, radius, fuelType }) => ({
+        url: '/prices/nearby',
+        params: { lat, lng, radius, ...(fuelType ? { fuelType } : {}) },
+      }),
+      providesTags: ['NearbyPrices'],
+    }),
   }),
 });
 
@@ -105,4 +119,5 @@ export const {
   useSearchStationsQuery,
   useSubscribePushMutation,
   useUnsubscribePushMutation,
+  useGetNearbyPricesQuery,
 } = fuelFinderApi;

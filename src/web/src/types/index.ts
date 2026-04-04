@@ -9,6 +9,19 @@ export interface FuelAvailabilityDto {
   available: boolean | null;
 }
 
+export interface PriceDto {
+  stationId: string;
+  stationName: string;
+  brand: string;
+  address: string;
+  suburb: string;
+  distanceMetres: number;
+  fuelType: FuelType;
+  pricePerLitreCents: number;
+  recordedAtUtc: string; // ISO 8601
+  isStale: boolean;
+}
+
 export interface StationDto {
   id: string;
   name: string;
@@ -23,6 +36,7 @@ export interface StationDto {
   fuelAvailability: FuelAvailabilityDto[];
   reportCount: number;
   lastReportMinutesAgo: number | null;
+  latestPrices: PriceDto[];
 }
 
 export interface ReportFuelTypeDto {

@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
-import { RefreshCw, Fuel, MapPin, AlertTriangle, Search } from 'lucide-react';
+import { RefreshCw, Fuel, MapPin, AlertTriangle, Search, Flame, X } from 'lucide-react';
 import { skipToken } from '@reduxjs/toolkit/query/react';
-import { useGetNearbyStationsQuery, useGetStatsSummaryQuery, useSearchStationsQuery } from '../api/fuelFinderApi';
+import { useGetNearbyStationsQuery, useGetStatsSummaryQuery, useSearchStationsQuery, useGetNearbyPricesQuery } from '../api/fuelFinderApi';
 import StationCard from '../components/StationCard';
 import StationCardSkeleton from '../components/StationCardSkeleton';
 import StationMap from '../components/StationMap';
@@ -61,6 +61,64 @@ function readStoredRadius(): RadiusValue {
   } catch {
     return DEFAULT_RADIUS;
   }
+}
+
+const CHEAPEST_DISMISS_KEY = 'fuelfinder:cheapest-dismissed';
+
+interface CheapestNearbyProps {
+  coords: Coords;
+  radius: number;
+}
+
+function CheapestNearby({ coords, radius }: CheapestNearbyProps) {
+  const [dismissed, setDismissed] = useState(() => {
+    try { return sessionStorage.getItem(CHEAPEST_DISMISS_KEY) === '1'; } catch { return false; }
+  });
+  const navigate = useNavigate();
+
+  const { data: prices } = useGetNearbyPricesQuery(
+    { lat: coords.lat, lng: coords.lng, radius, fuelType: 'ULP' },
+    { pollingInterval: 300_000 }, // re-check every 5 min (matches cache TTL)
+  );
+
+  if (dismissed || !prices || prices.length === 0) return null;
+
+  const cheapest = prices[0]; // API returns sorted by price ASC
+  const km = cheapest.distanceMetres >= 1000
+    ? `${(cheapest.distanceMetres / 1000).toFixed(1)} km`
+    : `${Math.round(cheapest.distanceMetres)} m`;
+
+  function handleDismiss(e: React.MouseEvent) {
+    e.stopPropagation();
+    setDismissed(true);
+    try { sessionStorage.setItem(CHEAPEST_DISMISS_KEY, '1'); } catch { /* ignore */ }
+  }
+
+  return (
+    <button
+      type="button"
+      className={styles.cheapestBanner}
+      onClick={() => navigate(`/stations/${cheapest.stationId}`)}
+      aria-label={`Cheapest ULP nearby: ${cheapest.pricePerLitreCents.toFixed(1)} cents at ${cheapest.stationName}`}
+    >
+      <Flame size={14} className={styles.cheapestIcon} />
+      <span className={styles.cheapestText}>
+        Cheapest ULP nearby:{' '}
+        <strong>{cheapest.pricePerLitreCents.toFixed(1)}¢</strong>
+        {' '}at {cheapest.stationName} — {km}
+      </span>
+      <span
+        role="button"
+        aria-label="Dismiss cheapest banner"
+        className={styles.cheapestDismiss}
+        onClick={handleDismiss}
+        tabIndex={0}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleDismiss(e as unknown as React.MouseEvent); }}
+      >
+        <X size={13} />
+      </span>
+    </button>
+  );
 }
 
 interface Coords {
@@ -225,6 +283,10 @@ export default function HomePage() {
           stateFilter={stateFilter}
           onStateChange={setStateFilter}
         />
+      )}
+
+      {!isSearching && coords && (
+        <CheapestNearby coords={coords} radius={radius} />
       )}
 
       <main className={styles.main}>

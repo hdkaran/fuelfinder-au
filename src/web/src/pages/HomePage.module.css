@@ -151,6 +151,66 @@
   opacity: 0.55;
 }
 
+/* ── Cheapest nearby banner ──────────────────────────────────────────────── */
+
+.cheapestBanner {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 9px 16px;
+  background: var(--color-dark);
+  color: #fff;
+  border: none;
+  font-family: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  transition: opacity 0.1s, transform 0.1s;
+}
+
+.cheapestBanner:active {
+  opacity: 0.85;
+  transform: scale(0.99);
+}
+
+.cheapestIcon {
+  color: var(--color-amber);
+  flex-shrink: 0;
+}
+
+.cheapestText {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.cheapestText strong {
+  color: var(--color-amber);
+  font-weight: 800;
+}
+
+.cheapestDismiss {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  color: rgba(255, 255, 255, 0.5);
+  cursor: pointer;
+  transition: color 0.1s, background 0.1s;
+}
+
+.cheapestDismiss:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.1);
+}
+
 /* ── Main content ────────────────────────────────────────────────────────── */
 
 .main {

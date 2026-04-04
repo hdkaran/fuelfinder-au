@@ -82,14 +82,15 @@ public class SaStationSeeder(
 
             stations.Add(new Station
             {
-                Id        = Guid.NewGuid(),
-                Name      = site.Name.Trim(),
-                Brand     = brandName?.Trim() ?? string.Empty,
-                Address   = site.Address.Trim(),
-                Suburb    = ToTitleCase(suburb ?? string.Empty),
-                State     = "SA",
-                Latitude  = site.Lat,
-                Longitude = site.Lng,
+                Id         = Guid.NewGuid(),
+                Name       = site.Name.Trim(),
+                Brand      = brandName?.Trim() ?? string.Empty,
+                Address    = site.Address.Trim(),
+                Suburb     = ToTitleCase(suburb ?? string.Empty),
+                State      = "SA",
+                Latitude   = site.Lat,
+                Longitude  = site.Lng,
+                ExternalId = site.SiteId.ToString(),
             });
         }
 
