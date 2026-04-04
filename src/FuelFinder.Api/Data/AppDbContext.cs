@@ -5,10 +5,11 @@ namespace FuelFinder.Api.Data;
 
 public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options)
 {
-    public DbSet<Station> Stations => Set<Station>();
-    public DbSet<Report> Reports => Set<Report>();
+    public DbSet<Station>       Stations       => Set<Station>();
+    public DbSet<Report>        Reports        => Set<Report>();
     public DbSet<ReportFuelType> ReportFuelTypes => Set<ReportFuelType>();
     public DbSet<PushRegistration> PushRegistrations => Set<PushRegistration>();
+    public DbSet<StationPrice>  StationPrices  => Set<StationPrice>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -20,7 +21,24 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.Property(s => s.Address).HasMaxLength(500).IsRequired();
             e.Property(s => s.Suburb).HasMaxLength(100).IsRequired();
             e.Property(s => s.State).HasMaxLength(3).IsRequired();
+            e.Property(s => s.ExternalId).HasMaxLength(50);
             e.HasIndex(s => new { s.Latitude, s.Longitude }); // bounding-box queries
+            e.HasIndex(s => new { s.State, s.ExternalId });   // price sync lookups
+        });
+
+        modelBuilder.Entity<StationPrice>(e =>
+        {
+            e.HasKey(p => p.Id);
+            e.Property(p => p.FuelType).HasMaxLength(20).IsRequired();
+            e.Property(p => p.Source).HasMaxLength(10).IsRequired();
+            e.Property(p => p.PricePerLitreCents).HasColumnType("decimal(10,1)");
+            e.HasOne<Station>()
+             .WithMany(s => s.StationPrices)
+             .HasForeignKey(p => p.StationId)
+             .OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(p => new { p.StationId, p.FuelType });
+            e.HasIndex(p => p.RecordedAtUtc);
+            e.HasIndex(p => p.Source); // efficient delete-by-state during sync
         });
 
         modelBuilder.Entity<Report>(e =>

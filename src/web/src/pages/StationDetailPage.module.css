@@ -187,6 +187,54 @@
   transform: scale(0.97);
 }
 
+/* ── Current prices ──────────────────────────────────────────────────────── */
+
+.priceHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+/* Override the margin added by sectionTitle when inside priceHeader */
+.priceHeader .sectionTitle {
+  margin-bottom: 0;
+}
+
+.priceUpdated {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  color: var(--color-text-secondary);
+  flex-shrink: 0;
+}
+
+.priceRow {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.noPrices {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  margin: 0;
+}
+
+.staleWarning {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--color-amber-dark);
+  background: var(--color-amber-light);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  margin-bottom: 12px;
+}
+
 /* ── Loading / not found ─────────────────────────────────────────────────── */
 
 .centered {

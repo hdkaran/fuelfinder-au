@@ -4,6 +4,7 @@ import type { StationDto } from '../types';
 import { formatDistance, formatMinutesAgo, pluralise } from '../utils/format';
 import StatusPill from './StatusPill';
 import FuelBadge from './FuelBadge';
+import PriceTag from './PriceTag/PriceTag';
 import styles from './StationCard.module.css';
 
 const STATUS_CLASS: Record<string, string> = {
@@ -46,6 +47,19 @@ export default function StationCard({ station }: Props) {
             <FuelBadge key={fa.fuelType} fuelType={fa.fuelType} available={fa.available} />
           ))}
         </div>
+
+        {station.latestPrices.length > 0 && (
+          <div className={styles.prices}>
+            {station.latestPrices.map((p) => (
+              <PriceTag
+                key={p.fuelType}
+                fuelType={p.fuelType}
+                pricePerLitreCents={p.pricePerLitreCents}
+                isStale={p.isStale}
+              />
+            ))}
+          </div>
+        )}
       </Link>
 
       <div className={styles.footer}>

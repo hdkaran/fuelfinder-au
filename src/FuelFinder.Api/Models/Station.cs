@@ -8,8 +8,10 @@ public class Station
     public string Address { get; set; } = string.Empty;
     public string Suburb { get; set; } = string.Empty;
     public string State { get; set; } = string.Empty;
-    public double Latitude { get; set; }
-    public double Longitude { get; set; }
+    public double  Latitude   { get; set; }
+    public double  Longitude  { get; set; }
+    public string? ExternalId { get; set; } // SiteId for QLD/SA; stationCode for NSW
 
-    public ICollection<Report> Reports { get; set; } = new List<Report>();
+    public ICollection<Report>       Reports       { get; set; } = new List<Report>();
+    public ICollection<StationPrice> StationPrices { get; set; } = new List<StationPrice>();
 }

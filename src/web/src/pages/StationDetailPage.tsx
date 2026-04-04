@@ -1,13 +1,14 @@
 import { useParams, Link } from 'react-router-dom';
 import { skipToken } from '@reduxjs/toolkit/query/react';
-import { MapPin, Clock, Navigation } from 'lucide-react';
+import { MapPin, Clock, Navigation, AlertCircle } from 'lucide-react';
 import { Helmet } from 'react-helmet-async';
 import { useGetStationQuery, useGetRecentReportsQuery } from '../api/fuelFinderApi';
 import PageHeader from '../components/PageHeader';
 import StatusPill from '../components/StatusPill';
 import FuelBadge from '../components/FuelBadge';
+import PriceTag from '../components/PriceTag/PriceTag';
 import { formatDistance, formatMinutesAgo, pluralise } from '../utils/format';
-import type { FuelType } from '../types';
+import type { FuelType, PriceDto } from '../types';
 import styles from './StationDetailPage.module.css';
 
 const FUEL_TYPE_SCHEMA_LABEL: Record<FuelType, string> = {
@@ -36,6 +37,58 @@ function PageMessage({ text }: { text: string }) {
     <div className={styles.page}>
       <div className={styles.centered}><p>{text}</p></div>
     </div>
+  );
+}
+
+function PricesSection({ prices }: { prices: PriceDto[] }) {
+  if (prices.length === 0) {
+    return (
+      <section className={styles.section}>
+        <h2 className={styles.sectionTitle}>Current Prices</h2>
+        <p className={styles.noPrices}>No pricing data available for this station.</p>
+      </section>
+    );
+  }
+
+  const mostRecentUtc = prices.reduce<string | null>((acc, p) => {
+    if (!acc) return p.recordedAtUtc;
+    return p.recordedAtUtc > acc ? p.recordedAtUtc : acc;
+  }, null);
+
+  const updatedMinutesAgo = mostRecentUtc
+    ? Math.floor((Date.now() - new Date(mostRecentUtc).getTime()) / 60_000)
+    : null;
+
+  const allStale = prices.every((p) => p.isStale);
+
+  return (
+    <section className={styles.section}>
+      <div className={styles.priceHeader}>
+        <h2 className={styles.sectionTitle}>Current Prices</h2>
+        {updatedMinutesAgo !== null && (
+          <span className={styles.priceUpdated}>
+            <Clock size={11} /> Updated {formatMinutesAgo(updatedMinutesAgo)}
+          </span>
+        )}
+      </div>
+      {allStale && (
+        <div className={styles.staleWarning}>
+          <AlertCircle size={13} />
+          Prices may be outdated — data refreshes every 30 minutes
+        </div>
+      )}
+      <div className={styles.priceRow}>
+        {prices.map((p) => (
+          <PriceTag
+            key={p.fuelType}
+            fuelType={p.fuelType}
+            pricePerLitreCents={p.pricePerLitreCents}
+            isStale={p.isStale}
+            size="large"
+          />
+        ))}
+      </div>
+    </section>
   );
 }
 
@@ -125,6 +178,9 @@ export default function StationDetailPage() {
             ))}
           </div>
         </section>
+
+        {/* Current prices */}
+        <PricesSection prices={station.latestPrices} />
 
         {/* Recent reports */}
         {recentReports && recentReports.length > 0 && (

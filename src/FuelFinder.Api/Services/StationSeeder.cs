@@ -61,14 +61,15 @@ public class StationSeeder(
                      && !string.IsNullOrWhiteSpace(s.Name))
             .Select(s => new Station
             {
-                Id       = Guid.NewGuid(),
-                Name     = s.Name.Trim(),
-                Brand    = s.Brand.Trim(),
-                Address  = ParseAddress(s.Address),
-                Suburb   = ParseSuburb(s.Address),
-                State    = "NSW",
-                Latitude = s.Location!.Latitude,
-                Longitude = s.Location.Longitude,
+                Id         = Guid.NewGuid(),
+                Name       = s.Name.Trim(),
+                Brand      = s.Brand.Trim(),
+                Address    = ParseAddress(s.Address),
+                Suburb     = ParseSuburb(s.Address),
+                State      = "NSW",
+                Latitude   = s.Location!.Latitude,
+                Longitude  = s.Location.Longitude,
+                ExternalId = string.IsNullOrEmpty(s.StationCode) ? null : s.StationCode.Trim(),
             })
             .ToList();
 
@@ -116,9 +117,10 @@ public class StationSeeder(
 
     private sealed class FuelCheckStation
     {
-        public string Name    { get; set; } = string.Empty;
-        public string Brand   { get; set; } = string.Empty;
-        public string Address { get; set; } = string.Empty;
+        public string StationCode { get; set; } = string.Empty;
+        public string Name        { get; set; } = string.Empty;
+        public string Brand       { get; set; } = string.Empty;
+        public string Address     { get; set; } = string.Empty;
         public GeoLocation? Location { get; set; }
     }
 

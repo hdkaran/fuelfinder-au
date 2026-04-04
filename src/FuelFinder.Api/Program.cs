@@ -15,9 +15,11 @@ var kvUri = builder.Configuration["KeyVault:Uri"];
 if (!string.IsNullOrEmpty(kvUri))
     builder.Configuration.AddAzureKeyVault(new Uri(kvUri), new DefaultAzureCredential());
 
-// Database
-builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("SqlConnection")));
+// Database — Scoped factory enables PriceSyncService to create independent DbContext
+// instances per state sync; Scoped lifetime avoids singleton/scoped lifetime mismatch.
+builder.Services.AddDbContextFactory<AppDbContext>(
+    options => options.UseSqlServer(builder.Configuration.GetConnectionString("SqlConnection")),
+    lifetime: ServiceLifetime.Scoped);
 
 // Distributed cache — Redis in production, in-memory fallback for local dev
 var redisConn = builder.Configuration.GetConnectionString("RedisConnection");
@@ -78,6 +80,8 @@ builder.Services.AddScoped<WaStationSeeder>();
 builder.Services.AddScoped<QldStationSeeder>();
 builder.Services.AddScoped<SaStationSeeder>();
 builder.Services.AddScoped<PushService>();
+builder.Services.AddScoped<IPriceSyncService, PriceSyncService>();
+builder.Services.AddHostedService<PriceSyncBackgroundService>();
 
 var app = builder.Build();
 
@@ -126,6 +130,7 @@ api.MapStationEndpoints();
 api.MapReportEndpoints();
 api.MapStatsEndpoints();
 api.MapPushEndpoints();
+api.MapPriceEndpoints();
 
 app.MapGet("/health", () => Results.Ok(new { status = "healthy" }));
 

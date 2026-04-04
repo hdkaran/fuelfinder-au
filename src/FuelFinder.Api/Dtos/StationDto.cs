@@ -13,6 +13,7 @@ public record StationDto(
     string Status,
     IReadOnlyList<FuelAvailabilityDto> FuelAvailability,
     int ReportCount,
-    int? LastReportMinutesAgo);
+    int? LastReportMinutesAgo,
+    IReadOnlyList<PriceDto> LatestPrices);
 
 public record FuelAvailabilityDto(string FuelType, bool? Available);

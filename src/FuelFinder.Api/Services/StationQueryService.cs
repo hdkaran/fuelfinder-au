@@ -14,9 +14,8 @@ sealed class StationQueryService(AppDbContext db, IDistributedCache cache)
     private static readonly TimeSpan GenTtl     = TimeSpan.FromHours(12);
     private const int RecentWindowHours = 4;
     private static readonly string[] AllFuelTypes = ["Diesel", "ULP", "E10", "Premium"];
+    private static readonly TimeSpan StalePriceWindow = TimeSpan.FromHours(2);
 
-    // Tracks how many reports have been submitted. Included in nearby/search cache keys so
-    // that any new report instantly busts all station-list caches across all lat/lng/radius combos.
     private const string StationsGenKey = "stations:gen";
 
     public async Task<IReadOnlyList<StationDto>> GetNearbyAsync(
@@ -48,8 +47,14 @@ sealed class StationQueryService(AppDbContext db, IDistributedCache cache)
 
         if (station is null) return null;
 
-        var reports = station.Reports.OrderByDescending(r => r.CreatedAt).ToList();
-        var dto = MapToDto(station, reports, distanceMetres: 0);
+        var prices = await db.StationPrices
+            .Where(p => p.StationId == id)
+            .AsNoTracking()
+            .ToListAsync(ct);
+
+        var reports     = station.Reports.OrderByDescending(r => r.CreatedAt).ToList();
+        var latestPrices = BuildLatestPrices(prices, station, distanceMetres: 0);
+        var dto = MapToDto(station, reports, distanceMetres: 0, latestPrices);
         await cache.SetJsonAsync(cacheKey, dto, StationTtl, ct);
         return dto;
     }
@@ -63,7 +68,7 @@ sealed class StationQueryService(AppDbContext db, IDistributedCache cache)
         var cached   = await cache.GetJsonAsync<IReadOnlyList<StationDto>>(cacheKey, ct);
         if (cached is not null) return cached;
 
-        var cutoff = DateTimeOffset.UtcNow.AddHours(-RecentWindowHours);
+        var cutoff  = DateTimeOffset.UtcNow.AddHours(-RecentWindowHours);
         var pattern = $"%{term}%";
 
         var stations = await db.Stations
@@ -77,6 +82,13 @@ sealed class StationQueryService(AppDbContext db, IDistributedCache cache)
             .Take(50)
             .ToListAsync(ct);
 
+        var matchedIds = stations.Select(s => s.Id).ToList();
+        var allPrices  = matchedIds.Count > 0
+            ? await db.StationPrices.Where(p => matchedIds.Contains(p.StationId)).AsNoTracking().ToListAsync(ct)
+            : [];
+        var pricesByStation = allPrices.GroupBy(p => p.StationId)
+            .ToDictionary(g => g.Key, g => g.ToList());
+
         var results = stations
             .Select(s =>
             {
@@ -84,7 +96,9 @@ sealed class StationQueryService(AppDbContext db, IDistributedCache cache)
                     ? Haversine(lat.Value, lng.Value, s.Latitude, s.Longitude)
                     : 0;
                 var reports = s.Reports.OrderByDescending(r => r.CreatedAt).ToList();
-                return MapToDto(s, reports, dist);
+                pricesByStation.TryGetValue(s.Id, out var stationPrices);
+                var latestPrices = BuildLatestPrices(stationPrices ?? [], s, dist);
+                return MapToDto(s, reports, dist, latestPrices);
             })
             .OrderBy(s => lat.HasValue ? s.DistanceMetres : 0)
             .ThenBy(s => s.Name)
@@ -98,9 +112,6 @@ sealed class StationQueryService(AppDbContext db, IDistributedCache cache)
     public async Task InvalidateAsync(Guid stationId, CancellationToken ct)
     {
         await cache.RemoveSafeAsync($"station:{stationId}", ct);
-
-        // Bump the generation so all nearby/search list caches are instantly stale.
-        // Old versioned keys expire naturally via NearbyTtl.
         var gen  = await cache.GetJsonAsync<long>(StationsGenKey, ct);
         await cache.SetJsonAsync(StationsGenKey, gen + 1, GenTtl, ct);
     }
@@ -110,9 +121,7 @@ sealed class StationQueryService(AppDbContext db, IDistributedCache cache)
     private async Task<IReadOnlyList<StationDto>> QueryNearbyFromDbAsync(
         double lat, double lng, double radiusMetres, string? fuelType, CancellationToken ct)
     {
-        var cutoff = DateTimeOffset.UtcNow.AddHours(-RecentWindowHours);
-
-        // Rough bounding-box pre-filter in SQL (avoids full table scan)
+        var cutoff   = DateTimeOffset.UtcNow.AddHours(-RecentWindowHours);
         var latDelta = radiusMetres / 111_000.0;
         var lngDelta = radiusMetres / (111_000.0 * Math.Cos(lat * Math.PI / 180.0));
 
@@ -124,35 +133,81 @@ sealed class StationQueryService(AppDbContext db, IDistributedCache cache)
             .AsNoTracking()
             .ToListAsync(ct);
 
-        var results = new List<StationDto>(stations.Count);
+        // First pass: Haversine + fuelType filter, collect (station, dist) pairs
+        var matched = new List<(Station Station, double Dist)>();
         foreach (var station in stations)
         {
             var dist = Haversine(lat, lng, station.Latitude, station.Longitude);
             if (dist > radiusMetres) continue;
 
-            var reports = station.Reports.OrderByDescending(r => r.CreatedAt).ToList();
-
-            // fuelType filter: only include stations with a recent report confirming availability
             if (fuelType is not null)
             {
-                var hasAvailableFuel = reports.Any(r =>
+                var stReports = station.Reports.OrderByDescending(r => r.CreatedAt).ToList();
+                var hasAvailableFuel = stReports.Any(r =>
                     r.FuelTypes.Any(ft => ft.FuelType == fuelType && ft.Available));
                 if (!hasAvailableFuel) continue;
             }
 
-            results.Add(MapToDto(station, reports, dist));
+            matched.Add((station, dist));
+        }
+
+        // Batch-fetch prices only for stations that made it through the filter
+        var matchedIds = matched.Select(x => x.Station.Id).ToList();
+        var allPrices  = matchedIds.Count > 0
+            ? await db.StationPrices.Where(p => matchedIds.Contains(p.StationId)).AsNoTracking().ToListAsync(ct)
+            : [];
+        var pricesByStation = allPrices
+            .GroupBy(p => p.StationId)
+            .ToDictionary(g => g.Key, g => g.ToList());
+
+        var results = new List<StationDto>(matched.Count);
+        foreach (var (station, dist) in matched)
+        {
+            var reports = station.Reports.OrderByDescending(r => r.CreatedAt).ToList();
+            pricesByStation.TryGetValue(station.Id, out var stationPrices);
+            var latestPrices = BuildLatestPrices(stationPrices ?? [], station, dist);
+            results.Add(MapToDto(station, reports, dist, latestPrices));
         }
 
         results.Sort((a, b) => a.DistanceMetres.CompareTo(b.DistanceMetres));
         return results;
     }
 
-    private static StationDto MapToDto(Station station, IReadOnlyList<Report> reports, double distanceMetres)
+    private static IReadOnlyList<PriceDto> BuildLatestPrices(
+        List<StationPrice> prices, Station station, double distanceMetres)
     {
-        var latest = reports.FirstOrDefault(); // sorted newest-first by caller
+        if (prices.Count == 0) return [];
+
+        var staleCutoff = DateTimeOffset.UtcNow.Subtract(StalePriceWindow);
+        return prices
+            .GroupBy(p => p.FuelType)
+            .Select(g =>
+            {
+                var latest = g.OrderByDescending(p => p.RecordedAtUtc).First();
+                return new PriceDto(
+                    station.Id,
+                    station.Name,
+                    station.Brand,
+                    station.Address,
+                    station.Suburb,
+                    distanceMetres,
+                    latest.FuelType,
+                    latest.PricePerLitreCents,
+                    latest.RecordedAtUtc,
+                    latest.RecordedAtUtc < staleCutoff);
+            })
+            .ToList();
+    }
+
+    private static StationDto MapToDto(
+        Station station,
+        IReadOnlyList<Report> reports,
+        double distanceMetres,
+        IReadOnlyList<PriceDto> latestPrices)
+    {
+        var latest = reports.FirstOrDefault();
         var status = latest?.Status ?? "unknown";
 
-        // For each fuel type, find the most recent report that mentions it
         var fuelAvailability = AllFuelTypes.Select(ft =>
         {
             bool? available = null;
@@ -171,7 +226,8 @@ sealed class StationQueryService(AppDbContext db, IDistributedCache cache)
         return new StationDto(
             station.Id, station.Name, station.Brand, station.Address,
             station.Suburb, station.State, station.Latitude, station.Longitude,
-            distanceMetres, status, fuelAvailability, reports.Count, lastMinutesAgo);
+            distanceMetres, status, fuelAvailability, reports.Count, lastMinutesAgo,
+            latestPrices);
     }
 
     private static double Haversine(double lat1, double lon1, double lat2, double lon2)

@@ -23,6 +23,7 @@ const station: StationDto = {
   ],
   reportCount: 3,
   lastReportMinutesAgo: 5,
+  latestPrices: [],
 };
 
 function renderCard(s: StationDto = station) {

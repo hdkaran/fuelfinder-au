@@ -17,6 +17,7 @@ describe('TypeScript types', () => {
       fuelAvailability: [{ fuelType: 'ULP', available: true }],
       reportCount: 3,
       lastReportMinutesAgo: 10,
+      latestPrices: [],
     };
     expect(station.status).toBe('available');
   });
