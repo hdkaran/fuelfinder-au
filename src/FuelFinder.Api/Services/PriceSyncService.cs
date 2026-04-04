@@ -21,7 +21,7 @@ public interface IPriceSyncService
 ///   QLD/SA: fetch GetFullSiteDetails (SiteId → lat/lng) then match DB stations by lat/lng.
 ///           This works regardless of whether Station.ExternalId has been populated.
 ///   WA:     lat/lng from RSS items matched to DB stations directly.
-///   NSW:    stationcode from v2/prices/full response; ExternalId match first,
+///   NSW:    stationcode from v1/prices/full response; ExternalId match first,
 ///           then lat/lng fallback via the stations array embedded in the same response.
 /// </summary>
 public class PriceSyncService(
@@ -292,7 +292,7 @@ public class PriceSyncService(
 
     // ── NSW ───────────────────────────────────────────────────────────────────
     // Primary match: ExternalId (stationCode, set by seeder for newly seeded stations).
-    // Fallback: lat/lng from the stations array embedded in the v2/prices/full response.
+    // Fallback: lat/lng from the stations array embedded in the v1/prices/full response.
     // The fallback handles stations seeded before ExternalId was introduced.
 
     private async Task SyncNswAsync(CancellationToken ct)
@@ -308,7 +308,7 @@ public class PriceSyncService(
 
             var client = httpClientFactory.CreateClient("FuelCheck");
             using var request = new HttpRequestMessage(
-                HttpMethod.Get, "https://api.onegov.nsw.gov.au/FuelCheckApp/v2/fuel/prices/full");
+                HttpMethod.Get, "https://api.onegov.nsw.gov.au/FuelCheckApp/v1/fuel/prices/full");
             request.Headers.Add("apikey", apiKey);
             request.Headers.Add("requesttimestamp", DateTime.Now.ToString("dd/MM/yyyy HH:mm:ss"));
             request.Headers.IfModifiedSince = new DateTimeOffset(2010, 1, 1, 0, 0, 0, TimeSpan.Zero);
@@ -316,7 +316,7 @@ public class PriceSyncService(
             var response = await client.SendAsync(request, ct);
             if (!response.IsSuccessStatusCode)
             {
-                logger.LogWarning("NSW FuelCheck v2 prices returned {Status}.", response.StatusCode);
+                logger.LogWarning("NSW FuelCheck v1 prices returned {Status}.", response.StatusCode);
                 return;
             }
 
