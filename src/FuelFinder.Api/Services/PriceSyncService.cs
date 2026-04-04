@@ -16,6 +16,13 @@ public interface IPriceSyncService
 /// Fetches live fuel prices from four state government APIs and upserts them into StationPrices.
 /// Each state sync is independent — a failure in one does not affect others.
 /// Uses delete-all + bulk-insert per state to keep prices current without row-by-row upserts.
+///
+/// Matching strategy:
+///   QLD/SA: fetch GetFullSiteDetails (SiteId → lat/lng) then match DB stations by lat/lng.
+///           This works regardless of whether Station.ExternalId has been populated.
+///   WA:     lat/lng from RSS items matched to DB stations directly.
+///   NSW:    stationcode from v2/prices/full response; ExternalId match first,
+///           then lat/lng fallback via the stations array embedded in the same response.
 /// </summary>
 public class PriceSyncService(
     IDbContextFactory<AppDbContext> dbFactory,
@@ -70,6 +77,8 @@ public class PriceSyncService(
     }
 
     // ── QLD ───────────────────────────────────────────────────────────────────
+    // Matches via lat/lng (fetches GetFullSiteDetails for SiteId→lat/lng mapping).
+    // This works for stations seeded before ExternalId was added.
 
     private async Task SyncQldAsync(CancellationToken ct)
     {
@@ -83,48 +92,48 @@ public class PriceSyncService(
             }
 
             var client = httpClientFactory.CreateClient("FuelPricesQld");
-            const string url = "https://fppdirectapi-prod.fuelpricesqld.com.au/Price/GetSitesPrices?countryId=21&geoRegionLevel=3&geoRegionId=1";
-            using var request = new HttpRequestMessage(HttpMethod.Get, url)
-            {
-                Headers = { { "Authorization", $"FPDAPI SubscriberToken={token}" } }
-            };
 
-            var response = await client.SendAsync(request, ct);
-            if (!response.IsSuccessStatusCode)
-            {
-                logger.LogWarning("QLD price API returned {Status}.", response.StatusCode);
-                return;
-            }
+            // 1. Fetch prices
+            var prices = await FetchFppPricesAsync(
+                client, token,
+                "https://fppdirectapi-prod.fuelpricesqld.com.au/Price/GetSitesPrices?countryId=21&geoRegionLevel=3&geoRegionId=1",
+                "QLD", ct);
+            if (prices is null) return;
 
-            var body   = await response.Content.ReadAsStringAsync(ct);
-            var result = JsonSerializer.Deserialize<FppPricesResponse>(body, JsonOptions);
-            if (result?.SitePrices is null or { Count: 0 })
-            {
-                logger.LogWarning("QLD price API returned no prices.");
-                return;
-            }
+            // 2. Fetch site details to get SiteId → lat/lng
+            var siteLatLng = await FetchFppSiteLatLngAsync(
+                client, token,
+                "https://fppdirectapi-prod.fuelpricesqld.com.au/Subscriber/GetFullSiteDetails?countryId=21&geoRegionLevel=3&geoRegionId=1",
+                "QLD", ct);
 
             await using var db = await dbFactory.CreateDbContextAsync(ct);
 
-            var stations = await db.Stations
-                .Where(s => s.State == "QLD" && s.ExternalId != null)
-                .AsNoTracking()
-                .ToListAsync(ct);
+            var dbStations = await db.Stations.Where(s => s.State == "QLD").AsNoTracking().ToListAsync(ct);
+            // GroupBy to guard against any duplicate rounded lat/lng in the DB
+            var byLatLng = dbStations
+                .GroupBy(s => LatLngKey(s.Latitude, s.Longitude))
+                .ToDictionary(g => g.Key, g => g.First());
 
-            var byExtId = stations.ToDictionary(s => s.ExternalId!);
-            var now     = DateTimeOffset.UtcNow;
-            var prices  = new List<StationPrice>();
+            var now        = DateTimeOffset.UtcNow;
+            var newPrices  = new List<StationPrice>();
+            var seenKeys   = new HashSet<string>();
+            var matched    = 0;
 
-            foreach (var sp in result.SitePrices)
+            foreach (var sp in prices)
             {
                 if (!FppFuelMap.TryGetValue(sp.FuelId, out var fuelType)) continue;
-                if (!byExtId.TryGetValue(sp.SiteId.ToString(), out var station)) continue;
+                if (!siteLatLng.TryGetValue(sp.SiteId, out var llKey)) continue;
+                if (!byLatLng.TryGetValue(llKey, out var station)) continue;
 
-                prices.Add(new StationPrice
+                var dedupKey = $"{station.Id}:{fuelType}";
+                if (!seenKeys.Add(dedupKey)) continue;
+
+                matched++;
+                newPrices.Add(new StationPrice
                 {
                     StationId          = station.Id,
                     FuelType           = fuelType,
-                    PricePerLitreCents = sp.Price / 10m, // tenths-of-cent → cents/litre
+                    PricePerLitreCents = sp.Price / 10m,
                     RecordedAtUtc      = sp.TransactionDateUtc != default
                         ? new DateTimeOffset(sp.TransactionDateUtc, TimeSpan.Zero)
                         : now,
@@ -132,8 +141,10 @@ public class PriceSyncService(
                 });
             }
 
-            await PersistPricesAsync(db, "QLD", prices, ct);
-            logger.LogInformation("QLD price sync: {Count} prices upserted.", prices.Count);
+            logger.LogInformation("QLD price sync: {Prices} prices → {Matched} matched DB stations ({Sites} sites from API, {DbStations} stations in DB).",
+                prices.Count, matched, siteLatLng.Count, dbStations.Count);
+
+            await PersistPricesAsync(db, "QLD", newPrices, ct);
         }
         catch (Exception ex)
         {
@@ -155,44 +166,41 @@ public class PriceSyncService(
             }
 
             var client = httpClientFactory.CreateClient("SaFuelPrices");
-            const string url = "https://fppdirectapi-prod.safuelpricinginformation.com.au/Price/GetSitesPrices?countryId=21&geoRegionLevel=3&geoRegionId=4";
-            using var request = new HttpRequestMessage(HttpMethod.Get, url)
-            {
-                Headers = { { "Authorization", $"FPDAPI SubscriberToken={token}" } }
-            };
 
-            var response = await client.SendAsync(request, ct);
-            if (!response.IsSuccessStatusCode)
-            {
-                logger.LogWarning("SA price API returned {Status}.", response.StatusCode);
-                return;
-            }
+            var prices = await FetchFppPricesAsync(
+                client, token,
+                "https://fppdirectapi-prod.safuelpricinginformation.com.au/Price/GetSitesPrices?countryId=21&geoRegionLevel=3&geoRegionId=4",
+                "SA", ct);
+            if (prices is null) return;
 
-            var body   = await response.Content.ReadAsStringAsync(ct);
-            var result = JsonSerializer.Deserialize<FppPricesResponse>(body, JsonOptions);
-            if (result?.SitePrices is null or { Count: 0 })
-            {
-                logger.LogWarning("SA price API returned no prices.");
-                return;
-            }
+            var siteLatLng = await FetchFppSiteLatLngAsync(
+                client, token,
+                "https://fppdirectapi-prod.safuelpricinginformation.com.au/Subscriber/GetFullSiteDetails?countryId=21&geoRegionLevel=3&geoRegionId=4",
+                "SA", ct);
 
             await using var db = await dbFactory.CreateDbContextAsync(ct);
 
-            var stations = await db.Stations
-                .Where(s => s.State == "SA" && s.ExternalId != null)
-                .AsNoTracking()
-                .ToListAsync(ct);
+            var dbStations = await db.Stations.Where(s => s.State == "SA").AsNoTracking().ToListAsync(ct);
+            var byLatLng = dbStations
+                .GroupBy(s => LatLngKey(s.Latitude, s.Longitude))
+                .ToDictionary(g => g.Key, g => g.First());
 
-            var byExtId = stations.ToDictionary(s => s.ExternalId!);
-            var now     = DateTimeOffset.UtcNow;
-            var prices  = new List<StationPrice>();
+            var now       = DateTimeOffset.UtcNow;
+            var newPrices = new List<StationPrice>();
+            var seenKeys  = new HashSet<string>();
+            var matched   = 0;
 
-            foreach (var sp in result.SitePrices)
+            foreach (var sp in prices)
             {
                 if (!FppFuelMap.TryGetValue(sp.FuelId, out var fuelType)) continue;
-                if (!byExtId.TryGetValue(sp.SiteId.ToString(), out var station)) continue;
+                if (!siteLatLng.TryGetValue(sp.SiteId, out var llKey)) continue;
+                if (!byLatLng.TryGetValue(llKey, out var station)) continue;
 
-                prices.Add(new StationPrice
+                var dedupKey = $"{station.Id}:{fuelType}";
+                if (!seenKeys.Add(dedupKey)) continue;
+
+                matched++;
+                newPrices.Add(new StationPrice
                 {
                     StationId          = station.Id,
                     FuelType           = fuelType,
@@ -204,8 +212,10 @@ public class PriceSyncService(
                 });
             }
 
-            await PersistPricesAsync(db, "SA", prices, ct);
-            logger.LogInformation("SA price sync: {Count} prices upserted.", prices.Count);
+            logger.LogInformation("SA price sync: {Prices} prices → {Matched} matched DB stations ({Sites} sites from API, {DbStations} stations in DB).",
+                prices.Count, matched, siteLatLng.Count, dbStations.Count);
+
+            await PersistPricesAsync(db, "SA", newPrices, ct);
         }
         catch (Exception ex)
         {
@@ -223,16 +233,15 @@ public class PriceSyncService(
 
             await using var db = await dbFactory.CreateDbContextAsync(ct);
 
-            var waStations = await db.Stations
-                .Where(s => s.State == "WA")
-                .AsNoTracking()
-                .ToListAsync(ct);
-
-            var byLatLng = waStations.ToDictionary(s => LatLngKey(s.Latitude, s.Longitude));
+            var waStations = await db.Stations.Where(s => s.State == "WA").AsNoTracking().ToListAsync(ct);
+            var byLatLng = waStations
+                .GroupBy(s => LatLngKey(s.Latitude, s.Longitude))
+                .ToDictionary(g => g.Key, g => g.First());
 
             var now       = DateTimeOffset.UtcNow;
             var prices    = new List<StationPrice>();
-            var seenKeys  = new HashSet<string>(); // deduplicate (stationId, fuelType)
+            var seenKeys  = new HashSet<string>();
+            var matched   = 0;
 
             foreach (var (product, fuelType) in WaProductMap)
             {
@@ -258,19 +267,22 @@ public class PriceSyncService(
                     var dedupKey = $"{station.Id}:{fuelType}";
                     if (!seenKeys.Add(dedupKey)) continue;
 
+                    matched++;
                     prices.Add(new StationPrice
                     {
                         StationId          = station.Id,
                         FuelType           = fuelType,
-                        PricePerLitreCents = item.Price, // already cents/litre
+                        PricePerLitreCents = item.Price,
                         RecordedAtUtc      = now,
                         Source             = "WA",
                     });
                 }
             }
 
+            logger.LogInformation("WA price sync: {Matched} prices matched ({DbStations} stations in DB).",
+                matched, waStations.Count);
+
             await PersistPricesAsync(db, "WA", prices, ct);
-            logger.LogInformation("WA price sync: {Count} prices upserted.", prices.Count);
         }
         catch (Exception ex)
         {
@@ -279,6 +291,9 @@ public class PriceSyncService(
     }
 
     // ── NSW ───────────────────────────────────────────────────────────────────
+    // Primary match: ExternalId (stationCode, set by seeder for newly seeded stations).
+    // Fallback: lat/lng from the stations array embedded in the v2/prices/full response.
+    // The fallback handles stations seeded before ExternalId was introduced.
 
     private async Task SyncNswAsync(CancellationToken ct)
     {
@@ -315,47 +330,54 @@ public class PriceSyncService(
 
             await using var db = await dbFactory.CreateDbContextAsync(ct);
 
-            // Build stationcode → Station lookup
-            // Try ExternalId first (set by NSW seeder), fall back to lat/lng from the response's stations list
-            var nswStations = await db.Stations
-                .Where(s => s.State == "NSW")
-                .AsNoTracking()
-                .ToListAsync(ct);
+            var nswStations = await db.Stations.Where(s => s.State == "NSW").AsNoTracking().ToListAsync(ct);
 
-            var byExtId  = nswStations
+            // Primary: ExternalId (stationCode) → Station
+            var byExtId = nswStations
                 .Where(s => !string.IsNullOrEmpty(s.ExternalId))
                 .ToDictionary(s => s.ExternalId!);
 
+            // Fallback: lat/lng → Station (handles stations without ExternalId)
             var byLatLng = nswStations
-                .ToDictionary(s => LatLngKey(s.Latitude, s.Longitude));
+                .GroupBy(s => LatLngKey(s.Latitude, s.Longitude))
+                .ToDictionary(g => g.Key, g => g.First());
 
-            // Build stationcode → lat/lng from the response's station list (for fallback matching)
-            var responseLatLng = result.Stations?
-                .Where(s => !string.IsNullOrEmpty(s.StationCode))
+            // Build stationcode → LatLngKey from the response's stations list
+            var responseStationLatLng = result.Stations?
+                .Where(s => !string.IsNullOrEmpty(s.StationCode)
+                         && (s.Latitude != 0 || s.Longitude != 0))
                 .ToDictionary(s => s.StationCode!, s => LatLngKey(s.Latitude, s.Longitude))
                 ?? [];
 
-            var now      = DateTimeOffset.UtcNow;
-            var prices   = new List<StationPrice>();
-            var seenKeys = new HashSet<string>();
+            logger.LogInformation("NSW price sync: {PriceCount} prices in response, {StationCount} stations in response, {DbStations} stations in DB ({WithExtId} with ExternalId, {LatLngEntries} lat/lng entries).",
+                result.Prices.Count, responseStationLatLng.Count, nswStations.Count, byExtId.Count, byLatLng.Count);
+
+            var now       = DateTimeOffset.UtcNow;
+            var prices    = new List<StationPrice>();
+            var seenKeys  = new HashSet<string>();
+            var matched   = 0;
+            var unmatched = 0;
 
             foreach (var p in result.Prices)
             {
                 if (!NswFuelMap.TryGetValue(p.FuelType, out var fuelType)) continue;
 
-                // Resolve station: ExternalId (stationcode) → lat/lng fallback
                 Models.Station? station = null;
+
+                // 1. ExternalId match (fast path for newly seeded stations)
                 if (byExtId.TryGetValue(p.StationCode, out var s1))
                     station = s1;
-                else if (responseLatLng.TryGetValue(p.StationCode, out var llKey)
+                // 2. lat/lng fallback via the stations array in the response
+                else if (responseStationLatLng.TryGetValue(p.StationCode, out var llKey)
                       && byLatLng.TryGetValue(llKey, out var s2))
                     station = s2;
 
-                if (station is null) continue;
+                if (station is null) { unmatched++; continue; }
 
                 var dedupKey = $"{station.Id}:{fuelType}";
                 if (!seenKeys.Add(dedupKey)) continue;
 
+                matched++;
                 var recordedAt = DateTime.TryParseExact(
                     p.LastUpdated, "dd/MM/yyyy HH:mm:ss",
                     System.Globalization.CultureInfo.InvariantCulture,
@@ -367,14 +389,16 @@ public class PriceSyncService(
                 {
                     StationId          = station.Id,
                     FuelType           = fuelType,
-                    PricePerLitreCents = (decimal)p.Price, // already cents/litre
+                    PricePerLitreCents = (decimal)p.Price,
                     RecordedAtUtc      = recordedAt,
                     Source             = "NSW",
                 });
             }
 
+            logger.LogInformation("NSW price sync: {Matched} prices inserted, {Unmatched} unmatched (stations not in DB).",
+                matched, unmatched);
+
             await PersistPricesAsync(db, "NSW", prices, ct);
-            logger.LogInformation("NSW price sync: {Count} prices upserted.", prices.Count);
         }
         catch (Exception ex)
         {
@@ -382,7 +406,55 @@ public class PriceSyncService(
         }
     }
 
-    // ── Shared helpers ────────────────────────────────────────────────────────
+    // ── FPP shared helpers ────────────────────────────────────────────────────
+
+    private async Task<List<FppSitePrice>?> FetchFppPricesAsync(
+        HttpClient client, string token, string url, string state, CancellationToken ct)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, url)
+        {
+            Headers = { { "Authorization", $"FPDAPI SubscriberToken={token}" } }
+        };
+        var response = await client.SendAsync(request, ct);
+        if (!response.IsSuccessStatusCode)
+        {
+            logger.LogWarning("{State} price API returned {Status}.", state, response.StatusCode);
+            return null;
+        }
+        var body   = await response.Content.ReadAsStringAsync(ct);
+        var result = JsonSerializer.Deserialize<FppPricesResponse>(body, JsonOptions);
+        if (result?.SitePrices is null or { Count: 0 })
+        {
+            logger.LogWarning("{State} price API returned no prices.", state);
+            return null;
+        }
+        return result.SitePrices;
+    }
+
+    /// <summary>Fetches GetFullSiteDetails and returns SiteId → LatLngKey.</summary>
+    private async Task<Dictionary<long, string>> FetchFppSiteLatLngAsync(
+        HttpClient client, string token, string url, string state, CancellationToken ct)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, url)
+        {
+            Headers = { { "Authorization", $"FPDAPI SubscriberToken={token}" } }
+        };
+        var response = await client.SendAsync(request, ct);
+        if (!response.IsSuccessStatusCode)
+        {
+            logger.LogWarning("{State} GetFullSiteDetails returned {Status}.", state, response.StatusCode);
+            return [];
+        }
+        var body   = await response.Content.ReadAsStringAsync(ct);
+        var result = JsonSerializer.Deserialize<FppSitesResponse>(body, JsonOptions);
+        return result?.S?
+            .Where(s => s.Lat != 0 || s.Lng != 0)
+            .GroupBy(s => s.SiteId)
+            .ToDictionary(g => (long)g.Key, g => LatLngKey(g.First().Lat, g.First().Lng))
+            ?? [];
+    }
+
+    // ── General helpers ───────────────────────────────────────────────────────
 
     private static async Task PersistPricesAsync(
         AppDbContext db, string source, List<StationPrice> prices, CancellationToken ct)
@@ -434,10 +506,23 @@ public class PriceSyncService(
 
     private sealed class FppSitePrice
     {
-        public long     SiteId               { get; set; }
-        public int      FuelId               { get; set; }
-        public decimal  Price                { get; set; }
-        public DateTime TransactionDateUtc   { get; set; }
+        public long     SiteId             { get; set; }
+        public int      FuelId             { get; set; }
+        public decimal  Price              { get; set; }
+        public DateTime TransactionDateUtc { get; set; }
+    }
+
+    // Re-uses the same site response shape as the seeders
+    private sealed class FppSitesResponse
+    {
+        public List<FppSite>? S { get; set; }
+    }
+
+    private sealed class FppSite
+    {
+        [JsonPropertyName("S")] public int    SiteId { get; set; }
+        public double Lat { get; set; }
+        public double Lng { get; set; }
     }
 
     private sealed class NswPricesResponse
@@ -455,10 +540,10 @@ public class PriceSyncService(
 
     private sealed class NswPrice
     {
-        public string  StationCode  { get; set; } = string.Empty;
-        public string  FuelType     { get; set; } = string.Empty;
-        public double  Price        { get; set; }
-        public string  LastUpdated  { get; set; } = string.Empty;
+        public string StationCode { get; set; } = string.Empty;
+        public string FuelType    { get; set; } = string.Empty;
+        public double Price       { get; set; }
+        public string LastUpdated { get; set; } = string.Empty;
     }
 
     private sealed record WaItem(double Latitude, double Longitude, decimal Price);
