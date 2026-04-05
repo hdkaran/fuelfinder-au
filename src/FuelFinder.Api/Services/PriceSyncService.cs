@@ -21,8 +21,10 @@ public interface IPriceSyncService
 ///   QLD/SA: fetch GetFullSiteDetails (SiteId → lat/lng) then match DB stations by lat/lng.
 ///           This works regardless of whether Station.ExternalId has been populated.
 ///   WA:     lat/lng from RSS items matched to DB stations directly.
-///   NSW:    stationcode from v1/prices/full response; ExternalId match first,
-///           then lat/lng fallback via the stations array embedded in the same response.
+///   NSW:    /v1/prices/new delta feed (stateful per API key — server tracks watermark).
+///           Prices are upserted (not delete-all) so non-delta prices survive. Stale
+///           NSW prices older than 25 h are purged each run. ExternalId match first,
+///           then lat/lng fallback via the stations array in the response.
 /// </summary>
 public class PriceSyncService(
     IDbContextFactory<AppDbContext> dbFactory,
@@ -291,9 +293,15 @@ public class PriceSyncService(
     }
 
     // ── NSW ───────────────────────────────────────────────────────────────────
-    // Primary match: ExternalId (stationCode, set by seeder for newly seeded stations).
-    // Fallback: lat/lng from the stations array embedded in the v1/prices/full response.
-    // The fallback handles stations seeded before ExternalId was introduced.
+    // The FuelCheck /prices/new API is a stateful delta feed per API key.
+    // The server tracks the last-sent watermark and returns only prices updated
+    // since the previous call — do NOT send If-Modified-Since: 2010 (that poisons
+    // the server state so nothing ever comes back). We let the server manage its
+    // own watermark and apply returned prices as UPSERTS so previously seen prices
+    // are not lost between syncs. Stale NSW prices (>25 h old) are purged each run.
+    //
+    // Station matching: ExternalId (stationCode) first, then lat/lng fallback via
+    // the stations array embedded in the response.
 
     private async Task SyncNswAsync(CancellationToken ct)
     {
@@ -308,23 +316,30 @@ public class PriceSyncService(
 
             var client = httpClientFactory.CreateClient("FuelCheck");
             using var request = new HttpRequestMessage(
-                HttpMethod.Get, "https://api.onegov.nsw.gov.au/FuelCheckApp/v1/fuel/prices/full");
+                HttpMethod.Get, "https://api.onegov.nsw.gov.au/FuelCheckApp/v1/fuel/prices/new");
             request.Headers.Add("apikey", apiKey);
+            // requesttimestamp must use the format the API expects; DateTime.Now on
+            // Azure (UTC) matches the server's expected AEST-ish format closely enough.
             request.Headers.Add("requesttimestamp", DateTime.Now.ToString("dd/MM/yyyy HH:mm:ss"));
-            request.Headers.IfModifiedSince = new DateTimeOffset(2010, 1, 1, 0, 0, 0, TimeSpan.Zero);
+            // No If-Modified-Since — the server tracks the delta watermark per API key.
 
             var response = await client.SendAsync(request, ct);
             if (!response.IsSuccessStatusCode)
             {
-                logger.LogWarning("NSW FuelCheck v1 prices returned {Status}.", response.StatusCode);
+                logger.LogWarning("NSW FuelCheck /prices/new returned {Status}.", response.StatusCode);
                 return;
             }
 
             var body   = await response.Content.ReadAsStringAsync(ct);
             var result = JsonSerializer.Deserialize<NswPricesResponse>(body, JsonOptions);
+
+            // Empty response is normal between syncs — the server has nothing new.
             if (result?.Prices is null or { Count: 0 })
             {
-                logger.LogWarning("NSW FuelCheck returned no prices.");
+                logger.LogInformation("NSW FuelCheck returned 0 new prices (no changes since last sync).");
+                // Still purge stale prices even when delta is empty.
+                await using var cleanupDb = await dbFactory.CreateDbContextAsync(ct);
+                await PurgeStaleNswPricesAsync(cleanupDb, ct);
                 return;
             }
 
@@ -346,11 +361,12 @@ public class PriceSyncService(
             var responseStationLatLng = result.Stations?
                 .Where(s => !string.IsNullOrEmpty(s.StationCode)
                          && (s.Latitude != 0 || s.Longitude != 0))
-                .ToDictionary(s => s.StationCode!, s => LatLngKey(s.Latitude, s.Longitude))
+                .GroupBy(s => s.StationCode!)
+                .ToDictionary(g => g.Key, g => LatLngKey(g.First().Latitude, g.First().Longitude))
                 ?? [];
 
-            logger.LogInformation("NSW price sync: {PriceCount} prices in response, {StationCount} stations in response, {DbStations} stations in DB ({WithExtId} with ExternalId, {LatLngEntries} lat/lng entries).",
-                result.Prices.Count, responseStationLatLng.Count, nswStations.Count, byExtId.Count, byLatLng.Count);
+            logger.LogInformation("NSW price sync: {PriceCount} delta prices, {StationCount} stations in response, {DbStations} DB stations ({WithExtId} with ExternalId).",
+                result.Prices.Count, responseStationLatLng.Count, nswStations.Count, byExtId.Count);
 
             var now       = DateTimeOffset.UtcNow;
             var prices    = new List<StationPrice>();
@@ -364,7 +380,7 @@ public class PriceSyncService(
 
                 Models.Station? station = null;
 
-                // 1. ExternalId match (fast path for newly seeded stations)
+                // 1. ExternalId match
                 if (byExtId.TryGetValue(p.StationCode, out var s1))
                     station = s1;
                 // 2. lat/lng fallback via the stations array in the response
@@ -395,15 +411,55 @@ public class PriceSyncService(
                 });
             }
 
-            logger.LogInformation("NSW price sync: {Matched} prices inserted, {Unmatched} unmatched (stations not in DB).",
+            logger.LogInformation("NSW price sync: {Matched} prices upserted, {Unmatched} unmatched.",
                 matched, unmatched);
 
-            await PersistPricesAsync(db, "NSW", prices, ct);
+            await UpsertNswPricesAsync(db, prices, ct);
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "NSW price sync failed.");
         }
+    }
+
+    /// <summary>
+    /// Upserts NSW prices (update existing StationId+FuelType row, insert otherwise)
+    /// then purges records older than 25 hours that were never refreshed.
+    /// This preserves valid prices from previous syncs rather than wiping them.
+    /// </summary>
+    private async Task UpsertNswPricesAsync(
+        AppDbContext db, List<StationPrice> prices, CancellationToken ct)
+    {
+        using var tx = await db.Database.BeginTransactionAsync(ct);
+
+        foreach (var price in prices)
+        {
+            var rowsUpdated = await db.StationPrices
+                .Where(p => p.StationId == price.StationId
+                         && p.FuelType  == price.FuelType
+                         && p.Source    == "NSW")
+                .ExecuteUpdateAsync(s => s
+                    .SetProperty(p => p.PricePerLitreCents, price.PricePerLitreCents)
+                    .SetProperty(p => p.RecordedAtUtc,      price.RecordedAtUtc), ct);
+
+            if (rowsUpdated == 0)
+                db.StationPrices.Add(price);
+        }
+
+        if (db.ChangeTracker.HasChanges())
+            await db.SaveChangesAsync(ct);
+
+        await PurgeStaleNswPricesAsync(db, ct);
+
+        await tx.CommitAsync(ct);
+    }
+
+    private static async Task PurgeStaleNswPricesAsync(AppDbContext db, CancellationToken ct)
+    {
+        var staleThreshold = DateTimeOffset.UtcNow.AddHours(-25);
+        await db.StationPrices
+            .Where(p => p.Source == "NSW" && p.RecordedAtUtc < staleThreshold)
+            .ExecuteDeleteAsync(ct);
     }
 
     // ── FPP shared helpers ────────────────────────────────────────────────────
