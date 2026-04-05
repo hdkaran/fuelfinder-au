@@ -365,6 +365,21 @@ public class PriceSyncService(
                 .ToDictionary(g => g.Key, g => LatLngKey(g.First().Latitude, g.First().Longitude))
                 ?? [];
 
+            // One-time ExternalId backfill: stations were seeded before ExternalId was
+            // introduced so all have ExternalId = null. Fetch /lovs to get stationCode
+            // → lat/lng, match DB stations by lat/lng, persist stationCode as ExternalId.
+            // After this runs once, all subsequent syncs use the fast ExternalId path.
+            if (byExtId.Count == 0 && nswStations.Count > 0)
+            {
+                await BackfillNswExternalIdsAsync(db, apiKey, client, nswStations, ct);
+                // Rebuild lookup with freshly written ExternalIds
+                var refreshed = await db.Stations
+                    .Where(s => s.State == "NSW" && s.ExternalId != null)
+                    .AsNoTracking().ToListAsync(ct);
+                byExtId = refreshed.ToDictionary(s => s.ExternalId!);
+                logger.LogInformation("NSW ExternalId backfill complete: {Count} stations now have ExternalId.", byExtId.Count);
+            }
+
             logger.LogInformation("NSW price sync: {PriceCount} delta prices, {StationCount} stations in response, {DbStations} DB stations ({WithExtId} with ExternalId).",
                 result.Prices.Count, responseStationLatLng.Count, nswStations.Count, byExtId.Count);
 
@@ -419,6 +434,64 @@ public class PriceSyncService(
         catch (Exception ex)
         {
             logger.LogError(ex, "NSW price sync failed.");
+        }
+    }
+
+    /// <summary>
+    /// One-time backfill: fetches /v1/fuel/lovs to obtain stationCode (ExternalId)
+    /// for NSW stations seeded before ExternalId was introduced. Matches by lat/lng
+    /// and persists stationCode into Station.ExternalId. No-op if already populated.
+    /// </summary>
+    private async Task BackfillNswExternalIdsAsync(
+        AppDbContext db, string apiKey, HttpClient client,
+        List<Models.Station> dbStations, CancellationToken ct)
+    {
+        try
+        {
+            using var lovsRequest = new HttpRequestMessage(
+                HttpMethod.Get, "https://api.onegov.nsw.gov.au/FuelCheckApp/v1/fuel/lovs");
+            lovsRequest.Headers.Add("apikey", apiKey);
+            lovsRequest.Headers.Add("requesttimestamp", DateTime.Now.ToString("dd/MM/yyyy HH:mm:ss"));
+            lovsRequest.Headers.IfModifiedSince = new DateTimeOffset(2010, 1, 1, 0, 0, 0, TimeSpan.Zero);
+
+            var lovsResponse = await client.SendAsync(lovsRequest, ct);
+            if (!lovsResponse.IsSuccessStatusCode)
+            {
+                logger.LogWarning("NSW /lovs returned {Status} during ExternalId backfill.", lovsResponse.StatusCode);
+                return;
+            }
+
+            var body = await lovsResponse.Content.ReadAsStringAsync(ct);
+            var lovs = JsonSerializer.Deserialize<NswLovsResponse>(body, JsonOptions);
+            if (lovs?.Stations?.Items is null or { Count: 0 }) return;
+
+            // stationCode → lat/lng key from the API
+            var apiByLatLng = lovs.Stations.Items
+                .Where(s => s.Location is { Latitude: not 0 }
+                         && !string.IsNullOrEmpty(s.StationCode))
+                .GroupBy(s => LatLngKey(s.Location!.Latitude, s.Location.Longitude))
+                .ToDictionary(g => g.Key, g => g.First().StationCode);
+
+            // DB stations indexed by lat/lng
+            var dbByLatLng = dbStations
+                .GroupBy(s => LatLngKey(s.Latitude, s.Longitude))
+                .ToDictionary(g => g.Key, g => g.First());
+
+            int updated = 0;
+            foreach (var (llKey, stationCode) in apiByLatLng)
+            {
+                if (!dbByLatLng.TryGetValue(llKey, out var dbStation)) continue;
+                await db.Stations
+                    .Where(s => s.Id == dbStation.Id)
+                    .ExecuteUpdateAsync(s => s.SetProperty(p => p.ExternalId, stationCode), ct);
+                updated++;
+            }
+
+            logger.LogInformation("NSW ExternalId backfill: {Updated}/{Total} stations matched via lat/lng.", updated, dbStations.Count);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "NSW ExternalId backfill failed — prices will fall back to lat/lng matching.");
         }
     }
 
@@ -603,4 +676,27 @@ public class PriceSyncService(
     }
 
     private sealed record WaItem(double Latitude, double Longitude, decimal Price);
+
+    // NSW /lovs DTOs — used for one-time ExternalId backfill only
+    private sealed class NswLovsResponse
+    {
+        public NswStationList? Stations { get; set; }
+    }
+
+    private sealed class NswStationList
+    {
+        public List<NswLovsStation>? Items { get; set; }
+    }
+
+    private sealed class NswLovsStation
+    {
+        public string        StationCode { get; set; } = string.Empty;
+        public NswGeoLocation? Location  { get; set; }
+    }
+
+    private sealed class NswGeoLocation
+    {
+        public double Latitude  { get; set; }
+        public double Longitude { get; set; }
+    }
 }
