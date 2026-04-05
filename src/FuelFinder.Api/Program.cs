@@ -132,6 +132,7 @@ api.MapStatsEndpoints();
 api.MapPushEndpoints();
 api.MapPriceEndpoints();
 
+app.MapAdminEndpoints();
 app.MapGet("/health", () => Results.Ok(new { status = "healthy" }));
 
 app.Run();

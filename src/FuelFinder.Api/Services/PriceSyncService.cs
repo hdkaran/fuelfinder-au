@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Xml.Linq;
@@ -10,6 +11,7 @@ namespace FuelFinder.Api.Services;
 public interface IPriceSyncService
 {
     Task SyncAsync(CancellationToken ct = default);
+    Task SyncNswForceFullAsync(CancellationToken cancellationToken = default);
 }
 
 /// <summary>
@@ -318,9 +320,7 @@ public class PriceSyncService(
             using var request = new HttpRequestMessage(
                 HttpMethod.Get, "https://api.onegov.nsw.gov.au/FuelCheckApp/v1/fuel/prices/new");
             request.Headers.Add("apikey", apiKey);
-            // requesttimestamp must use the format the API expects; DateTime.Now on
-            // Azure (UTC) matches the server's expected AEST-ish format closely enough.
-            request.Headers.Add("requesttimestamp", DateTime.Now.ToString("dd/MM/yyyy HH:mm:ss"));
+            request.Headers.Add("requesttimestamp", AestTimestamp());
             // No If-Modified-Since — the server tracks the delta watermark per API key.
 
             var response = await client.SendAsync(request, ct);
@@ -340,6 +340,17 @@ public class PriceSyncService(
                 // Still purge stale prices even when delta is empty.
                 await using var cleanupDb = await dbFactory.CreateDbContextAsync(ct);
                 await PurgeStaleNswPricesAsync(cleanupDb, ct);
+
+                // If the DB has no NSW prices at all, the delta watermark has been consumed
+                // by previous failed attempts without persisting anything — fall back to a full fetch.
+                var nswPriceCount = await cleanupDb.StationPrices
+                    .Where(p => p.Source == "NSW")
+                    .CountAsync(ct);
+                if (nswPriceCount == 0)
+                {
+                    logger.LogInformation("NSW DB has 0 prices after empty delta — triggering full price fetch.");
+                    await SyncNswForceFullAsync(ct);
+                }
                 return;
             }
 
@@ -409,11 +420,13 @@ public class PriceSyncService(
                 if (!seenKeys.Add(dedupKey)) continue;
 
                 matched++;
+                var aest = TimeZoneInfo.FindSystemTimeZoneById(
+                    OperatingSystem.IsWindows() ? "AUS Eastern Standard Time" : "Australia/Sydney");
                 var recordedAt = DateTime.TryParseExact(
                     p.LastUpdated, "dd/MM/yyyy HH:mm:ss",
-                    System.Globalization.CultureInfo.InvariantCulture,
-                    System.Globalization.DateTimeStyles.None, out var dt)
-                    ? new DateTimeOffset(dt, TimeSpan.Zero)
+                    CultureInfo.InvariantCulture,
+                    DateTimeStyles.None, out var dt)
+                    ? new DateTimeOffset(TimeZoneInfo.ConvertTimeToUtc(dt, aest))
                     : now;
 
                 prices.Add(new StationPrice
@@ -438,6 +451,142 @@ public class PriceSyncService(
     }
 
     /// <summary>
+    /// Returns the current AEST time as a formatted string for the FuelCheck requesttimestamp header.
+    /// On Linux (Azure App Service) DateTime.Now is UTC, so we must convert explicitly.
+    /// </summary>
+    private static string AestTimestamp()
+    {
+        var aest = TimeZoneInfo.FindSystemTimeZoneById(
+            OperatingSystem.IsWindows() ? "AUS Eastern Standard Time" : "Australia/Sydney");
+        return TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, aest)
+                           .ToString("dd/MM/yyyy HH:mm:ss");
+    }
+
+    /// <summary>
+    /// Fetches ALL current NSW prices from /v1/fuel/prices (not the delta feed) and upserts
+    /// them. Used as a fallback when the delta watermark has been consumed by previous failed
+    /// attempts and the DB has 0 NSW prices. If the DB already has NSW prices this is a no-op
+    /// (caller should check before invoking, but this is safe to call at any time).
+    /// </summary>
+    public async Task SyncNswForceFullAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var apiKey = config["FuelCheck:ApiKey"];
+            if (string.IsNullOrEmpty(apiKey))
+            {
+                logger.LogWarning("FuelCheck:ApiKey not configured — skipping NSW force-full sync.");
+                return;
+            }
+
+            await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
+
+            // Guard: if the DB already has NSW prices, skip to avoid duplicate work.
+            var existing = await db.StationPrices
+                .Where(p => p.Source == "NSW")
+                .CountAsync(cancellationToken);
+            if (existing > 0)
+            {
+                logger.LogInformation("NSW force-full sync skipped — DB already has {Count} NSW prices.", existing);
+                return;
+            }
+
+            var client = httpClientFactory.CreateClient("FuelCheck");
+            using var request = new HttpRequestMessage(
+                HttpMethod.Get, "https://api.onegov.nsw.gov.au/FuelCheckApp/v1/fuel/prices");
+            request.Headers.Add("apikey", apiKey);
+            request.Headers.Add("requesttimestamp", AestTimestamp());
+            // Use a far-past If-Modified-Since to retrieve the full price list.
+            request.Headers.IfModifiedSince = new DateTimeOffset(2010, 1, 1, 0, 0, 0, TimeSpan.Zero);
+
+            var response = await client.SendAsync(request, cancellationToken);
+            if (!response.IsSuccessStatusCode)
+            {
+                logger.LogWarning("NSW FuelCheck /prices (full) returned {Status}.", response.StatusCode);
+                return;
+            }
+
+            var body   = await response.Content.ReadAsStringAsync(cancellationToken);
+            var result = JsonSerializer.Deserialize<NswPricesResponse>(body, JsonOptions);
+
+            if (result?.Prices is null or { Count: 0 })
+            {
+                logger.LogWarning("NSW FuelCheck /prices (full) returned 0 prices.");
+                return;
+            }
+
+            var nswStations = await db.Stations.Where(s => s.State == "NSW").AsNoTracking().ToListAsync(cancellationToken);
+
+            var byExtId = nswStations
+                .Where(s => !string.IsNullOrEmpty(s.ExternalId))
+                .ToDictionary(s => s.ExternalId!);
+
+            var byLatLng = nswStations
+                .GroupBy(s => LatLngKey(s.Latitude, s.Longitude))
+                .ToDictionary(g => g.Key, g => g.First());
+
+            var responseStationLatLng = result.Stations?
+                .Where(s => !string.IsNullOrEmpty(s.StationCode)
+                         && (s.Latitude != 0 || s.Longitude != 0))
+                .GroupBy(s => s.StationCode!)
+                .ToDictionary(g => g.Key, g => LatLngKey(g.First().Latitude, g.First().Longitude))
+                ?? [];
+
+            var now      = DateTimeOffset.UtcNow;
+            var prices   = new List<StationPrice>();
+            var seenKeys = new HashSet<string>();
+            var matched  = 0;
+            var unmatched = 0;
+
+            foreach (var p in result.Prices)
+            {
+                if (!NswFuelMap.TryGetValue(p.FuelType, out var fuelType)) continue;
+
+                Models.Station? station = null;
+
+                if (byExtId.TryGetValue(p.StationCode, out var s1))
+                    station = s1;
+                else if (responseStationLatLng.TryGetValue(p.StationCode, out var llKey)
+                      && byLatLng.TryGetValue(llKey, out var s2))
+                    station = s2;
+
+                if (station is null) { unmatched++; continue; }
+
+                var dedupKey = $"{station.Id}:{fuelType}";
+                if (!seenKeys.Add(dedupKey)) continue;
+
+                matched++;
+                var aest = TimeZoneInfo.FindSystemTimeZoneById(
+                    OperatingSystem.IsWindows() ? "AUS Eastern Standard Time" : "Australia/Sydney");
+                var recordedAt = DateTime.TryParseExact(
+                    p.LastUpdated, "dd/MM/yyyy HH:mm:ss",
+                    CultureInfo.InvariantCulture,
+                    DateTimeStyles.None, out var dt)
+                    ? new DateTimeOffset(TimeZoneInfo.ConvertTimeToUtc(dt, aest))
+                    : now;
+
+                prices.Add(new StationPrice
+                {
+                    StationId          = station.Id,
+                    FuelType           = fuelType,
+                    PricePerLitreCents = (decimal)p.Price,
+                    RecordedAtUtc      = recordedAt,
+                    Source             = "NSW",
+                });
+            }
+
+            logger.LogInformation("NSW full price sync: {Total} prices → {Matched} matched DB stations ({Unmatched} unmatched).",
+                result.Prices.Count, matched, unmatched);
+
+            await UpsertNswPricesAsync(db, prices, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "NSW force-full price sync failed.");
+        }
+    }
+
+    /// <summary>
     /// One-time backfill: fetches /v1/fuel/lovs to obtain stationCode (ExternalId)
     /// for NSW stations seeded before ExternalId was introduced. Matches by lat/lng
     /// and persists stationCode into Station.ExternalId. No-op if already populated.
@@ -451,7 +600,7 @@ public class PriceSyncService(
             using var lovsRequest = new HttpRequestMessage(
                 HttpMethod.Get, "https://api.onegov.nsw.gov.au/FuelCheckApp/v1/fuel/lovs");
             lovsRequest.Headers.Add("apikey", apiKey);
-            lovsRequest.Headers.Add("requesttimestamp", DateTime.Now.ToString("dd/MM/yyyy HH:mm:ss"));
+            lovsRequest.Headers.Add("requesttimestamp", AestTimestamp());
             lovsRequest.Headers.IfModifiedSince = new DateTimeOffset(2010, 1, 1, 0, 0, 0, TimeSpan.Zero);
 
             var lovsResponse = await client.SendAsync(lovsRequest, ct);
